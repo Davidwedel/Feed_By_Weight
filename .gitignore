@@ -1,0 +1,24 @@
+# PlatformIO
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json
+
+# Build output
+*.o
+*.elf
+*.bin
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Credentials (if you add them)
+credentials.h
+secrets.h

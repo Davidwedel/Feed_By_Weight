@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weight Feeder Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #444;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+        .status-item {
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 4px;
+        }
+        .status-item label {
+            display: block;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .status-item .value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+        .bins {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .bin {
+            text-align: center;
+            padding: 15px;
+            background: #e8f4f8;
+            border-radius: 4px;
+        }
+        .bin-label {
+            font-weight: bold;
+            color: #0066cc;
+        }
+        .bin-weight {
+            font-size: 1.5em;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+        .time-inputs {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        button {
+            background: #0066cc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-right: 10px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #0052a3;
+        }
+        button.danger {
+            background: #dc3545;
+        }
+        button.danger:hover {
+            background: #c82333;
+        }
+        button.success {
+            background: #28a745;
+        }
+        button.success:hover {
+            background: #218838;
+        }
+        .manual-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #f0f0f0;
+            font-weight: 600;
+        }
+        .connected { color: #28a745; }
+        .disconnected { color: #dc3545; }
+        .running { color: #ffc107; }
+        .stopped { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌾 Weight Feeder Control System</h1>
+
+        <!-- Status Card -->
+        <div class="card">
+            <h2>📊 System Status</h2>
+            <div class="status-grid">
+                <div class="status-item">
+                    <label>System State</label>
+                    <div class="value" id="systemState">-</div>
+                </div>
+                <div class="status-item">
+                    <label>Feeding Stage</label>
+                    <div class="value" id="feedingStage">-</div>
+                </div>
+                <div class="status-item">
+                    <label>BinTrac</label>
+                    <div class="value" id="bintracStatus">-</div>
+                </div>
+                <div class="status-item">
+                    <label>Network</label>
+                    <div class="value" id="networkStatus">-</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 20px; margin-bottom: 10px;">Bin Weights</h3>
+            <div class="bins">
+                <div class="bin">
+                    <div class="bin-label">Bin A</div>
+                    <div class="bin-weight" id="binA">0 lbs</div>
+                </div>
+                <div class="bin">
+                    <div class="bin-label">Bin B</div>
+                    <div class="bin-weight" id="binB">0 lbs</div>
+                </div>
+                <div class="bin">
+                    <div class="bin-label">Bin C</div>
+                    <div class="bin-weight" id="binC">0 lbs</div>
+                </div>
+                <div class="bin">
+                    <div class="bin-label">Bin D</div>
+                    <div class="bin-weight" id="binD">0 lbs</div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <div class="status-item">
+                    <label>Weight Dispensed</label>
+                    <div class="value" id="weightDispensed">0 lbs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual Controls -->
+        <div class="card">
+            <h2>🎮 Manual Controls</h2>
+            <div class="manual-controls">
+                <button onclick="manualControl('auger1_on')" class="success">Auger 1 ON</button>
+                <button onclick="manualControl('auger1_off')" class="danger">Auger 1 OFF</button>
+                <button onclick="manualControl('auger2_on')" class="success">Auger 2 ON</button>
+                <button onclick="manualControl('auger2_off')" class="danger">Auger 2 OFF</button>
+                <button onclick="startFeed()" style="background:#17a2b8">Start Feed Now</button>
+                <button onclick="stopFeed()" class="danger">STOP ALL</button>
+            </div>
+        </div>
+
+        <!-- Configuration -->
+        <div class="card">
+            <h2>⚙️ Configuration</h2>
+            <form id="configForm" onsubmit="saveConfig(event)">
+                <div class="form-group">
+                    <label>BinTrac IP Address</label>
+                    <input type="text" id="bintracIP" placeholder="192.168.1.100">
+                </div>
+
+                <div class="form-group">
+                    <label>BinTrac Device ID (0 = auto-discover)</label>
+                    <input type="number" id="bintracDeviceID" min="0" max="255">
+                </div>
+
+                <div class="form-group">
+                    <label>Feeding Times (HH:MM)</label>
+                    <div class="time-inputs">
+                        <input type="time" id="feedTime0">
+                        <input type="time" id="feedTime1">
+                        <input type="time" id="feedTime2">
+                        <input type="time" id="feedTime3">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Target Weight</label>
+                    <input type="number" id="targetWeight" step="0.1" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Auger 2 Pre-Run Time (seconds)</label>
+                    <input type="number" id="auger2PreRunTime" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Alarm Threshold (weight/minute)</label>
+                    <input type="number" id="alarmThreshold" step="0.1" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Maximum Runtime (seconds)</label>
+                    <input type="number" id="maxRuntime" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Timezone Offset (UTC hours)</label>
+                    <input type="number" id="timezone" min="-12" max="12">
+                </div>
+
+                <button type="submit">Save Configuration</button>
+            </form>
+        </div>
+
+        <!-- Feed History -->
+        <div class="card">
+            <h2>📜 Feed History</h2>
+            <button onclick="loadHistory()">Refresh</button>
+            <button onclick="clearHistory()" class="danger">Clear History</button>
+            <table id="historyTable" style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Cycle</th>
+                        <th>Target</th>
+                        <th>Actual</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    <tr><td colspan="6">No data</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '';
+
+        // Auto-refresh status
+        setInterval(loadStatus, 2000);
+        setInterval(loadConfig, 30000);
+
+        // Initial load
+        loadStatus();
+        loadConfig();
+        loadHistory();
+
+        function loadStatus() {
+            fetch(API_BASE + '/api/status')
+                .then(r => r.json())
+                .then(data => {
+                    const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
+                    const stages = ['STOPPED', 'AUGER2_ONLY', 'BOTH_AUGERS', 'COMPLETED', 'FAILED'];
+
+                    document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
+                    document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
+
+                    document.getElementById('bintracStatus').textContent = data.bintracConnected ? 'Connected' : 'Disconnected';
+                    document.getElementById('bintracStatus').className = 'value ' + (data.bintracConnected ? 'connected' : 'disconnected');
+
+                    document.getElementById('networkStatus').textContent = data.networkConnected ? 'Connected' : 'Disconnected';
+                    document.getElementById('networkStatus').className = 'value ' + (data.networkConnected ? 'connected' : 'disconnected');
+
+                    document.getElementById('binA').textContent = data.currentWeight[0].toFixed(2) + ' lbs';
+                    document.getElementById('binB').textContent = data.currentWeight[1].toFixed(2) + ' lbs';
+                    document.getElementById('binC').textContent = data.currentWeight[2].toFixed(2) + ' lbs';
+                    document.getElementById('binD').textContent = data.currentWeight[3].toFixed(2) + ' lbs';
+
+                    document.getElementById('weightDispensed').textContent = data.weightDispensed.toFixed(2) + ' lbs';
+                })
+                .catch(err => console.error('Status fetch error:', err));
+        }
+
+        function loadConfig() {
+            fetch(API_BASE + '/api/config')
+                .then(r => r.json())
+                .then(data => {
+                    document.getElementById('bintracIP').value = data.bintracIP;
+                    document.getElementById('bintracDeviceID').value = data.bintracDeviceID;
+                    document.getElementById('targetWeight').value = data.targetWeight;
+                    document.getElementById('auger2PreRunTime').value = data.auger2PreRunTime;
+                    document.getElementById('alarmThreshold').value = data.alarmThreshold;
+                    document.getElementById('maxRuntime').value = data.maxRuntime;
+                    document.getElementById('timezone').value = data.timezone;
+
+                    for (let i = 0; i < 4; i++) {
+                        const minutes = data.feedTimes[i];
+                        const h = Math.floor(minutes / 60);
+                        const m = minutes % 60;
+                        document.getElementById('feedTime' + i).value =
+                            String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+                    }
+                })
+                .catch(err => console.error('Config fetch error:', err));
+        }
+
+        function saveConfig(event) {
+            event.preventDefault();
+
+            const feedTimes = [];
+            for (let i = 0; i < 4; i++) {
+                const time = document.getElementById('feedTime' + i).value;
+                const [h, m] = time.split(':');
+                feedTimes.push(parseInt(h) * 60 + parseInt(m));
+            }
+
+            const config = {
+                bintracIP: document.getElementById('bintracIP').value,
+                bintracDeviceID: parseInt(document.getElementById('bintracDeviceID').value),
+                feedTimes: feedTimes,
+                targetWeight: parseFloat(document.getElementById('targetWeight').value),
+                auger2PreRunTime: parseInt(document.getElementById('auger2PreRunTime').value),
+                alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
+                maxRuntime: parseInt(document.getElementById('maxRuntime').value),
+                timezone: parseInt(document.getElementById('timezone').value)
+            };
+
+            fetch(API_BASE + '/api/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(config)
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert('Configuration saved!');
+            })
+            .catch(err => {
+                alert('Error saving configuration');
+                console.error(err);
+            });
+        }
+
+        function manualControl(action) {
+            fetch(API_BASE + '/api/manual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action})
+            })
+            .then(r => r.json())
+            .then(() => loadStatus())
+            .catch(err => console.error('Manual control error:', err));
+        }
+
+        function startFeed() {
+            if (confirm('Start feeding now?')) {
+                fetch(API_BASE + '/api/feed/start', {method: 'POST'})
+                    .then(r => r.json())
+                    .then(() => loadStatus())
+                    .catch(err => alert('Error: ' + err));
+            }
+        }
+
+        function stopFeed() {
+            if (confirm('Stop all augers immediately?')) {
+                fetch(API_BASE + '/api/feed/stop', {method: 'POST'})
+                    .then(r => r.json())
+                    .then(() => loadStatus())
+                    .catch(err => console.error('Stop error:', err));
+            }
+        }
+
+        function loadHistory() {
+            fetch(API_BASE + '/api/history')
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('historyBody');
+                    tbody.innerHTML = '';
+
+                    if (data.history.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6">No feed events</td></tr>';
+                        return;
+                    }
+
+                    data.history.reverse().forEach(event => {
+                        const row = tbody.insertRow();
+                        const date = new Date(event.timestamp * 1000);
+                        row.insertCell(0).textContent = date.toLocaleString();
+                        row.insertCell(1).textContent = event.feedCycle + 1;
+                        row.insertCell(2).textContent = event.targetWeight.toFixed(2) + ' lbs';
+                        row.insertCell(3).textContent = event.actualWeight.toFixed(2) + ' lbs';
+                        row.insertCell(4).textContent = event.duration + 's';
+                        row.insertCell(5).textContent = event.alarmTriggered ?
+                            '⚠️ ' + event.alarmReason : '✅ OK';
+                    });
+                })
+                .catch(err => console.error('History fetch error:', err));
+        }
+
+        function clearHistory() {
+            if (confirm('Clear all feed history?')) {
+                fetch(API_BASE + '/api/history', {method: 'DELETE'})
+                    .then(r => r.json())
+                    .then(() => loadHistory())
+                    .catch(err => console.error('Clear history error:', err));
+            }
+        }
+    </script>
+</body>
+</html>
