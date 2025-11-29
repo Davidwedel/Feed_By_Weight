@@ -94,8 +94,8 @@ void FeedWebServer::handleSetConfig() {
     if (doc.containsKey("weightUnit")) {
         _config.weightUnit = (WeightUnit)(int)doc["weightUnit"];
     }
-    if (doc.containsKey("auger2PreRunTime")) {
-        _config.auger2PreRunTime = doc["auger2PreRunTime"];
+    if (doc.containsKey("chainPreRunTime")) {
+        _config.chainPreRunTime = doc["chainPreRunTime"];
     }
     if (doc.containsKey("alarmThreshold")) {
         _config.alarmThreshold = doc["alarmThreshold"];
@@ -157,14 +157,14 @@ void FeedWebServer::handleManualControl() {
 
     String action = doc["action"];
 
-    if (action == "auger1_on") {
-        _augerControl.setAuger1(true);
-    } else if (action == "auger1_off") {
-        _augerControl.setAuger1(false);
-    } else if (action == "auger2_on") {
-        _augerControl.setAuger2(true);
-    } else if (action == "auger2_off") {
-        _augerControl.setAuger2(false);
+    if (action == "auger_on") {
+        _augerControl.setAuger(true);
+    } else if (action == "auger_off") {
+        _augerControl.setAuger(false);
+    } else if (action == "chain_on") {
+        _augerControl.setChain(true);
+    } else if (action == "chain_off") {
+        _augerControl.setChain(false);
     } else if (action == "stop_all") {
         _augerControl.stopAll();
     } else {
@@ -181,7 +181,7 @@ void FeedWebServer::handleStartFeed() {
         return;
     }
 
-    _augerControl.startFeeding(_config.targetWeight, _config.auger2PreRunTime, _config.maxRuntime);
+    _augerControl.startFeeding(_config.targetWeight, _config.chainPreRunTime, _config.maxRuntime);
     sendJsonResponse(200, "{\"success\":true}");
 }
 
@@ -217,7 +217,7 @@ String FeedWebServer::configToJson() {
 
     doc["targetWeight"] = _config.targetWeight;
     doc["weightUnit"] = (int)_config.weightUnit;
-    doc["auger2PreRunTime"] = _config.auger2PreRunTime;
+    doc["chainPreRunTime"] = _config.chainPreRunTime;
     doc["alarmThreshold"] = _config.alarmThreshold;
     doc["maxRuntime"] = _config.maxRuntime;
     doc["telegramToken"] = _config.telegramToken;
@@ -245,8 +245,8 @@ String FeedWebServer::statusToJson() {
 
     doc["weightAtStart"] = _status.weightAtStart;
     doc["weightDispensed"] = _status.weightDispensed;
-    doc["auger1Running"] = _status.auger1Running;
-    doc["auger2Running"] = _status.auger2Running;
+    doc["augerRunning"] = _status.augerRunning;
+    doc["chainRunning"] = _status.chainRunning;
     doc["bintracConnected"] = _status.bintracConnected;
     doc["networkConnected"] = _status.networkConnected;
     doc["lastError"] = _status.lastError;

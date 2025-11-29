@@ -1,22 +1,22 @@
 # Weight Feeder Control System
 
-Automated feed control system using ESP32 with W5500 Ethernet, BinTrac weight monitoring, and dual auger control.
+Automated feed control system using ESP32 with W5500 Ethernet, BinTrac weight monitoring, and sequential auger + chain control.
 
 ## Hardware Requirements
 
 - **LilyGo ESP32 8-Channel Relay Board** with W5500 Ethernet Shield
 - **BinTrac HouseLink HL-10E** Ethernet interface
 - **BinTrac Indicators** (up to 8 supported, monitors 4 bins each)
-- **Two Augers:**
-  - Auger 1: Main feed auger (Relay 1)
-  - Auger 2: Pre-feed auger (Relay 2)
+- **Feed System:**
+  - Auger: Main feed auger (Relay 1)
+  - Chain: Feed chain (Relay 2)
 - **12V Power Supply** for system
 
 ## Features
 
 ### Core Functionality
 - ✅ Reads weight data from BinTrac via Modbus TCP (all 4 bins: A, B, C, D)
-- ✅ Sequential auger control (Auger 2 pre-runs, then both run until target weight)
+- ✅ Sequential control (chain pre-runs, then both run until target weight)
 - ✅ 4 daily feeding schedules (configurable times)
 - ✅ Alarm system for low feed rate detection
 - ✅ Web-based configuration interface
@@ -115,7 +115,7 @@ pio run --target uploadfs
 | **bintracDeviceID** | Device ID (0=auto) | 0 |
 | **feedTimes[4]** | Minutes from midnight for each feed | 360, 720, 1080, 1440 (6am, 12pm, 6pm, 12am) |
 | **targetWeight** | Target weight to dispense (lbs) | 50.0 |
-| **auger2PreRunTime** | Auger 2 solo run time (seconds) | 10 |
+| **chainPreRunTime** | Chain solo run time (seconds) | 10 |
 | **alarmThreshold** | Min lbs/minute (alarm if below) | 10.0 |
 | **maxRuntime** | Maximum feeding time (seconds) | 600 |
 | **timezone** | UTC offset in hours | 0 |
@@ -125,8 +125,8 @@ pio run --target uploadfs
 ### Automatic Feeding Cycle
 1. **Wait for scheduled time** (one of 4 daily times)
 2. **Read initial bin weight** from BinTrac
-3. **Stage 1:** Auger 2 runs alone for configured pre-run time
-4. **Stage 2:** Both augers run together
+3. **Stage 1:** Chain runs alone for configured pre-run time
+4. **Stage 2:** Both auger and chain run together
 5. **Monitor weight:** Check every second, calculate dispensed amount
 6. **Stop when target reached** or alarm condition detected
 7. **Log event** to history
@@ -165,7 +165,7 @@ Clear all feed history
 ### POST /api/manual
 Manual auger control
 ```json
-{"action": "auger1_on|auger1_off|auger2_on|auger2_off|stop_all"}
+{"action": "auger_on|auger_off|chain_on|chain_off|stop_all"}
 ```
 
 ### POST /api/feed/start

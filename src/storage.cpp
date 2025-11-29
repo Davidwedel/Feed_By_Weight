@@ -78,7 +78,7 @@ bool Storage::configToJson(const Config& config, String& json) {
     // Feeding parameters
     doc["targetWeight"] = config.targetWeight;
     doc["weightUnit"] = (int)config.weightUnit;
-    doc["auger2PreRunTime"] = config.auger2PreRunTime;
+    doc["chainPreRunTime"] = config.chainPreRunTime;
 
     // Alarm settings
     doc["alarmThreshold"] = config.alarmThreshold;
@@ -121,7 +121,7 @@ bool Storage::jsonToConfig(const String& json, Config& config) {
     // Feeding parameters
     config.targetWeight = doc["targetWeight"] | 50.0;
     config.weightUnit = (WeightUnit)(doc["weightUnit"] | 0);
-    config.auger2PreRunTime = doc["auger2PreRunTime"] | 10;
+    config.chainPreRunTime = doc["chainPreRunTime"] | 10;
 
     // Alarm settings
     config.alarmThreshold = doc["alarmThreshold"] | 10.0;

@@ -2,17 +2,17 @@
 #include "config.h"
 
 AugerControl::AugerControl() {
-    _auger1Running = false;
-    _auger2Running = false;
+    _augerRunning = false;
+    _chainRunning = false;
     _stage = FeedingStage::STOPPED;
     _targetWeight = 0;
     _startWeight = 0;
     _weightDispensed = 0;
     _feedStartTime = 0;
-    _auger2StartTime = 0;
+    _chainStartTime = 0;
     _lastWeightCheck = 0;
     _alarmTriggered = false;
-    _auger2PreRunTime = 10;
+    _chainPreRunTime = 10;
     _maxRuntime = 600;
     _alarmThreshold = 10.0;
     _weightAtMinuteStart = 0;
@@ -28,20 +28,20 @@ void AugerControl::begin() {
     // Ensure all relays are OFF at startup
     stopAll();
 
-    Serial.println("Auger control initialized");
+    Serial.println("Auger and chain control initialized");
 }
 
-void AugerControl::startFeeding(float targetWeight, uint16_t auger2PreRunTime, uint16_t maxRuntime) {
+void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
     }
 
     _targetWeight = targetWeight;
-    _auger2PreRunTime = auger2PreRunTime;
+    _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
     _feedStartTime = millis();
-    _auger2StartTime = millis();
+    _chainStartTime = millis();
     _lastWeightCheck = millis();
     _minuteStartTime = millis();
     _startWeight = 0;  // Will be set on first update
@@ -49,12 +49,12 @@ void AugerControl::startFeeding(float targetWeight, uint16_t auger2PreRunTime, u
     _alarmTriggered = false;
     strcpy(_alarmReason, "");
 
-    // Start with Auger 2 only
-    _stage = FeedingStage::AUGER2_ONLY;
-    controlRelay2(true);
+    // Start with chain only
+    _stage = FeedingStage::CHAIN_ONLY;
+    controlChain(true);
 
-    Serial.printf("Feeding started: Target=%.2f, Auger2PreRun=%ds, MaxTime=%ds\n",
-                  targetWeight, auger2PreRunTime, maxRuntime);
+    Serial.printf("Feeding started: Target=%.2f, ChainPreRun=%ds, MaxTime=%ds\n",
+                  targetWeight, chainPreRunTime, maxRuntime);
 }
 
 FeedingStage AugerControl::update(float currentTotalWeight) {
@@ -83,17 +83,17 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
 
     switch (_stage) {
-        case FeedingStage::AUGER2_ONLY:
-            // Check if auger 2 pre-run time has elapsed
-            if ((millis() - _auger2StartTime) / 1000 >= _auger2PreRunTime) {
-                // Start auger 1 as well
-                controlRelay1(true);
-                _stage = FeedingStage::BOTH_AUGERS;
-                Serial.println("Stage: BOTH_AUGERS");
+        case FeedingStage::CHAIN_ONLY:
+            // Check if chain pre-run time has elapsed
+            if ((millis() - _chainStartTime) / 1000 >= _chainPreRunTime) {
+                // Start auger as well
+                controlAuger(true);
+                _stage = FeedingStage::BOTH_RUNNING;
+                Serial.println("Stage: BOTH_RUNNING");
             }
             break;
 
-        case FeedingStage::BOTH_AUGERS:
+        case FeedingStage::BOTH_RUNNING:
             // Check if target weight reached
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
@@ -129,8 +129,8 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 }
 
 void AugerControl::stopAll() {
-    controlRelay1(false);
-    controlRelay2(false);
+    controlAuger(false);
+    controlChain(false);
     _stage = FeedingStage::STOPPED;
 }
 
@@ -169,30 +169,30 @@ unsigned long AugerControl::getDuration() const {
     return (millis() - _feedStartTime) / 1000;
 }
 
-void AugerControl::setAuger1(bool state) {
+void AugerControl::setAuger(bool state) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot manual control - feeding in progress");
         return;
     }
-    controlRelay1(state);
+    controlAuger(state);
 }
 
-void AugerControl::setAuger2(bool state) {
+void AugerControl::setChain(bool state) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot manual control - feeding in progress");
         return;
     }
-    controlRelay2(state);
+    controlChain(state);
 }
 
-void AugerControl::controlRelay1(bool state) {
+void AugerControl::controlAuger(bool state) {
     digitalWrite(RELAY_1_PIN, state ? HIGH : LOW);
-    _auger1Running = state;
-    Serial.printf("Auger 1: %s\n", state ? "ON" : "OFF");
+    _augerRunning = state;
+    Serial.printf("Auger: %s\n", state ? "ON" : "OFF");
 }
 
-void AugerControl::controlRelay2(bool state) {
+void AugerControl::controlChain(bool state) {
     digitalWrite(RELAY_2_PIN, state ? HIGH : LOW);
-    _auger2Running = state;
-    Serial.printf("Auger 2: %s\n", state ? "ON" : "OFF");
+    _chainRunning = state;
+    Serial.printf("Chain: %s\n", state ? "ON" : "OFF");
 }

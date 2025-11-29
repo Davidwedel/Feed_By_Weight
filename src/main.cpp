@@ -97,8 +97,8 @@ void setup() {
     systemStatus.feedStartTime = 0;
     systemStatus.weightAtStart = 0;
     systemStatus.weightDispensed = 0;
-    systemStatus.auger1Running = false;
-    systemStatus.auger2Running = false;
+    systemStatus.augerRunning = false;
+    systemStatus.chainRunning = false;
     systemStatus.bintracConnected = false;
     systemStatus.networkConnected = ethConnected;
     systemStatus.lastBintracUpdate = 0;
@@ -201,8 +201,8 @@ void updateBinWeights() {
 }
 
 void updateSystemStatus() {
-    systemStatus.auger1Running = augerControl.isAuger1Running();
-    systemStatus.auger2Running = augerControl.isAuger2Running();
+    systemStatus.augerRunning = augerControl.isAugerRunning();
+    systemStatus.chainRunning = augerControl.isChainRunning();
     systemStatus.feedingStage = augerControl.getStage();
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
     systemStatus.networkConnected = ethConnected;
@@ -225,7 +225,7 @@ void runStateMachine() {
                     systemStatus.weightAtStart = totalWeight;
 
                     // Start feeding
-                    augerControl.startFeeding(config.targetWeight, config.auger2PreRunTime, config.maxRuntime);
+                    augerControl.startFeeding(config.targetWeight, config.chainPreRunTime, config.maxRuntime);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 

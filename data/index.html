@@ -204,10 +204,10 @@
         <div class="card">
             <h2>🎮 Manual Controls</h2>
             <div class="manual-controls">
-                <button onclick="manualControl('auger1_on')" class="success">Auger 1 ON</button>
-                <button onclick="manualControl('auger1_off')" class="danger">Auger 1 OFF</button>
-                <button onclick="manualControl('auger2_on')" class="success">Auger 2 ON</button>
-                <button onclick="manualControl('auger2_off')" class="danger">Auger 2 OFF</button>
+                <button onclick="manualControl('auger_on')" class="success">Auger ON</button>
+                <button onclick="manualControl('auger_off')" class="danger">Auger OFF</button>
+                <button onclick="manualControl('chain_on')" class="success">Chain ON</button>
+                <button onclick="manualControl('chain_off')" class="danger">Chain OFF</button>
                 <button onclick="startFeed()" style="background:#17a2b8">Start Feed Now</button>
                 <button onclick="stopFeed()" class="danger">STOP ALL</button>
             </div>
@@ -243,8 +243,8 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Auger 2 Pre-Run Time (seconds)</label>
-                    <input type="number" id="auger2PreRunTime" min="0">
+                    <label>Chain Pre-Run Time (seconds)</label>
+                    <input type="number" id="chainPreRunTime" min="0">
                 </div>
 
                 <div class="form-group">
@@ -306,7 +306,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
-                    const stages = ['STOPPED', 'AUGER2_ONLY', 'BOTH_AUGERS', 'COMPLETED', 'FAILED'];
+                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'COMPLETED', 'FAILED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
                     document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
@@ -334,7 +334,7 @@
                     document.getElementById('bintracIP').value = data.bintracIP;
                     document.getElementById('bintracDeviceID').value = data.bintracDeviceID;
                     document.getElementById('targetWeight').value = data.targetWeight;
-                    document.getElementById('auger2PreRunTime').value = data.auger2PreRunTime;
+                    document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
                     document.getElementById('alarmThreshold').value = data.alarmThreshold;
                     document.getElementById('maxRuntime').value = data.maxRuntime;
                     document.getElementById('timezone').value = data.timezone;
@@ -365,7 +365,7 @@
                 bintracDeviceID: parseInt(document.getElementById('bintracDeviceID').value),
                 feedTimes: feedTimes,
                 targetWeight: parseFloat(document.getElementById('targetWeight').value),
-                auger2PreRunTime: parseInt(document.getElementById('auger2PreRunTime').value),
+                chainPreRunTime: parseInt(document.getElementById('chainPreRunTime').value),
                 alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
                 maxRuntime: parseInt(document.getElementById('maxRuntime').value),
                 timezone: parseInt(document.getElementById('timezone').value)

@@ -129,7 +129,7 @@ void TelegramBot::sendStatus(const SystemStatus& status) {
 
     char message[512];
     const char* stateStr[] = {"IDLE", "WAITING", "FEEDING", "ALARM", "MANUAL", "ERROR"};
-    const char* stageStr[] = {"STOPPED", "AUGER2_ONLY", "BOTH_AUGERS", "COMPLETED", "FAILED"};
+    const char* stageStr[] = {"STOPPED", "CHAIN_ONLY", "BOTH_RUNNING", "COMPLETED", "FAILED"};
 
     snprintf(message, sizeof(message),
              "📈 *System Status*\n\n"
@@ -140,8 +140,8 @@ void TelegramBot::sendStatus(const SystemStatus& status) {
              "  B: %.2f lbs\n"
              "  C: %.2f lbs\n"
              "  D: %.2f lbs\n"
-             "Auger 1: %s\n"
-             "Auger 2: %s\n"
+             "Auger: %s\n"
+             "Chain: %s\n"
              "BinTrac: %s\n"
              "Network: %s",
              stateStr[(int)status.state],
@@ -150,8 +150,8 @@ void TelegramBot::sendStatus(const SystemStatus& status) {
              status.currentWeight[1],
              status.currentWeight[2],
              status.currentWeight[3],
-             status.auger1Running ? "ON" : "OFF",
-             status.auger2Running ? "ON" : "OFF",
+             status.augerRunning ? "ON" : "OFF",
+             status.chainRunning ? "ON" : "OFF",
              status.bintracConnected ? "Connected" : "Disconnected",
              status.networkConnected ? "Connected" : "Disconnected");
 

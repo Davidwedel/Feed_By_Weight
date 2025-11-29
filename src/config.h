@@ -5,8 +5,8 @@
 #define FIRMWARE_VERSION "1.0.0"
 
 // Relay pins (LilyGo 8-channel board)
-#define RELAY_1_PIN 32  // Auger 1 (main feed auger)
-#define RELAY_2_PIN 33  // Auger 2 (pre-feed auger)
+#define RELAY_1_PIN 32  // Auger
+#define RELAY_2_PIN 33  // Chain
 #define RELAY_3_PIN 25
 #define RELAY_4_PIN 26
 #define RELAY_5_PIN 27

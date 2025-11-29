@@ -12,9 +12,9 @@ public:
     void begin();
 
     // Start feeding cycle
-    void startFeeding(float targetWeight, uint16_t auger2PreRunTime, uint16_t maxRuntime);
+    void startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime);
 
-    // Stop all augers immediately
+    // Stop all immediately
     void stopAll();
 
     // Update - call frequently in main loop
@@ -22,8 +22,8 @@ public:
     FeedingStage update(float currentTotalWeight);
 
     // Get status
-    bool isAuger1Running() const { return _auger1Running; }
-    bool isAuger2Running() const { return _auger2Running; }
+    bool isAugerRunning() const { return _augerRunning; }
+    bool isChainRunning() const { return _chainRunning; }
     FeedingStage getStage() const { return _stage; }
     float getWeightDispensed() const { return _weightDispensed; }
     unsigned long getDuration() const;
@@ -31,15 +31,15 @@ public:
     const char* getAlarmReason() const { return _alarmReason; }
 
     // Manual control
-    void setAuger1(bool state);
-    void setAuger2(bool state);
+    void setAuger(bool state);
+    void setChain(bool state);
 
     // Check if feeding is active
     bool isFeeding() const { return _stage != FeedingStage::STOPPED; }
 
 private:
-    bool _auger1Running;
-    bool _auger2Running;
+    bool _augerRunning;
+    bool _chainRunning;
     FeedingStage _stage;
 
     float _targetWeight;
@@ -47,11 +47,11 @@ private:
     float _weightDispensed;
     float _alarmThreshold;
 
-    uint16_t _auger2PreRunTime;  // How long auger 2 runs alone (seconds)
+    uint16_t _chainPreRunTime;  // How long chain runs alone (seconds)
     uint16_t _maxRuntime;
 
     unsigned long _feedStartTime;
-    unsigned long _auger2StartTime;
+    unsigned long _chainStartTime;
     unsigned long _lastWeightCheck;
 
     bool _alarmTriggered;
@@ -66,8 +66,8 @@ private:
     void triggerAlarm(const char* reason);
 
     // Low-level relay control
-    void controlRelay1(bool state);
-    void controlRelay2(bool state);
+    void controlAuger(bool state);
+    void controlChain(bool state);
 };
 
 #endif // AUGER_CONTROL_H

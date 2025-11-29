@@ -22,8 +22,8 @@ enum class SystemState {
 // Feeding stage enumeration
 enum class FeedingStage {
     STOPPED,
-    AUGER2_ONLY,
-    BOTH_AUGERS,
+    CHAIN_ONLY,
+    BOTH_RUNNING,
     COMPLETED,
     FAILED
 };
@@ -40,7 +40,7 @@ struct Config {
     // Feeding parameters
     float targetWeight = 50.0;
     WeightUnit weightUnit = WeightUnit::POUNDS;
-    uint16_t auger2PreRunTime = 10;  // seconds
+    uint16_t chainPreRunTime = 10;  // seconds
 
     // Alarm settings
     float alarmThreshold = 10.0;  // weight per minute
@@ -75,8 +75,8 @@ struct SystemStatus {
     float currentWeight[4];   // A, B, C, D bins
     float weightAtStart;
     float weightDispensed;
-    bool auger1Running;
-    bool auger2Running;
+    bool augerRunning;
+    bool chainRunning;
     bool bintracConnected;
     bool networkConnected;
     char lastError[128];
