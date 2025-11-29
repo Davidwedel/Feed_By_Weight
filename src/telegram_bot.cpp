@@ -2,7 +2,9 @@
 #include "config.h"
 #include <time.h>
 
-TelegramBot::TelegramBot(Config& config) : _config(config) {
+// Note: SSLClient needs trust anchors, but we'll use insecure mode
+// analog_pin (A0) is used for random number generation
+TelegramBot::TelegramBot(Config& config) : _config(config), _client(_ethClient, nullptr, 0, A0) {
     _bot = nullptr;
     _initialized = false;
     _lastUpdateTime = 0;
@@ -14,32 +16,21 @@ bool TelegramBot::begin() {
         return false;
     }
 
-    // Note: Telegram requires WiFi since it uses WiFiClientSecure
-    // This is currently disabled. To enable Telegram:
-    // 1. Configure WiFi credentials in code or config
-    // 2. Connect WiFi before calling begin()
-    // 3. Or use Ethernet with custom SSL client (advanced)
+    Serial.println("Initializing Telegram bot over Ethernet...");
 
-    Serial.println("WARNING: Telegram disabled - requires WiFi connection");
-    Serial.println("System using Ethernet only. Telegram notifications unavailable.");
+    // Note: Using nullptr trust anchors = no certificate validation (insecure)
+    // For production, add proper Telegram API certificates
 
-    return false;
-
-    /* Uncomment and configure WiFi to enable Telegram:
-
-    // Configure secure client
-    _client.setInsecure();  // Skip certificate validation (for simplicity)
-
+    // Initialize Telegram bot with SSL client
     _bot = new UniversalTelegramBot(_config.telegramToken, _client);
 
     _initialized = true;
-    Serial.println("Telegram bot initialized");
+    Serial.println("Telegram bot initialized (SSL over Ethernet)");
 
     // Send startup message
-    sendMessage("🤖 Weight Feeder System Online");
+    sendMessage("🤖 Weight Feeder System Online (Ethernet)");
 
     return true;
-    */
 }
 
 void TelegramBot::update() {

@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
-#include <WiFi.h>
 #include "config.h"
 #include "types.h"
 #include "storage.h"
@@ -143,9 +142,6 @@ void loop() {
 
 void setupEthernet() {
     Serial.println("Initializing W5500 Ethernet...");
-
-    // Disable WiFi to save power
-    WiFi.mode(WIFI_OFF);
 
     // Initialize SPI
     SPI.begin();

@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 #include <UniversalTelegramBot.h>
-#include <WiFiClientSecure.h>
-#include <WiFi.h>
+#include <SSLClient.h>
+#include <EthernetClient.h>
 #include "types.h"
 
 class TelegramBot {
@@ -34,7 +34,8 @@ public:
 
 private:
     Config& _config;
-    WiFiClientSecure _client;
+    EthernetClient _ethClient;
+    SSLClient _client;
     UniversalTelegramBot* _bot;
     unsigned long _lastUpdateTime;
     bool _initialized;
