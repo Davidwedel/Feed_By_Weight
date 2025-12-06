@@ -223,11 +223,6 @@
                 </div>
 
                 <div class="form-group">
-                    <label>BinTrac Port</label>
-                    <input type="number" id="bintracPort" min="1" max="65535" placeholder="502">
-                </div>
-
-                <div class="form-group">
                     <label>BinTrac Device ID (0 = auto-discover)</label>
                     <input type="number" id="bintracDeviceID" min="0" max="255">
                 </div>
@@ -337,7 +332,6 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('bintracIP').value = data.bintracIP;
-                    document.getElementById('bintracPort').value = data.bintracPort;
                     document.getElementById('bintracDeviceID').value = data.bintracDeviceID;
                     document.getElementById('targetWeight').value = data.targetWeight;
                     document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
@@ -368,7 +362,6 @@
 
             const config = {
                 bintracIP: document.getElementById('bintracIP').value,
-                bintracPort: parseInt(document.getElementById('bintracPort').value),
                 bintracDeviceID: parseInt(document.getElementById('bintracDeviceID').value),
                 feedTimes: feedTimes,
                 targetWeight: parseFloat(document.getElementById('targetWeight').value),

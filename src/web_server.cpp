@@ -78,9 +78,6 @@ void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *dat
     if (doc.containsKey("bintracIP")) {
         strlcpy(_config.bintracIP, doc["bintracIP"], sizeof(_config.bintracIP));
     }
-    if (doc.containsKey("bintracPort")) {
-        _config.bintracPort = doc["bintracPort"];
-    }
     if (doc.containsKey("bintracDeviceID")) {
         _config.bintracDeviceID = doc["bintracDeviceID"];
     }
@@ -203,7 +200,6 @@ String FeedWebServer::configToJson() {
     JsonDocument doc;
 
     doc["bintracIP"] = _config.bintracIP;
-    doc["bintracPort"] = _config.bintracPort;
     doc["bintracDeviceID"] = _config.bintracDeviceID;
 
     JsonArray times = doc["feedTimes"].to<JsonArray>();

@@ -34,8 +34,10 @@ public:
     void setAuger(bool state);
     void setChain(bool state);
 
-    // Check if feeding is active
-    bool isFeeding() const { return _stage != FeedingStage::STOPPED; }
+    // Check if feeding is active (only active stages, not terminal states)
+    bool isFeeding() const {
+        return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING;
+    }
 
 private:
     bool _augerRunning;

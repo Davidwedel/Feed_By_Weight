@@ -75,8 +75,8 @@ void setup() {
     augerControl.begin();
 
     // Initialize BinTrac
-    Serial.printf("Connecting to BinTrac at %s:%d...\n", config.bintracIP, config.bintracPort);
-    if (bintrac.begin(config.bintracIP, config.bintracPort, config.bintracDeviceID)) {
+    Serial.printf("Connecting to BinTrac at %s:502...\n", config.bintracIP);
+    if (bintrac.begin(config.bintracIP, 502, config.bintracDeviceID)) {
         Serial.println("BinTrac connected");
     } else {
         Serial.printf("BinTrac connection failed: %s\n", bintrac.getLastError());

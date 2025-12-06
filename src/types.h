@@ -32,7 +32,6 @@ enum class FeedingStage {
 struct Config {
     // Network settings
     char bintracIP[16] = "192.168.1.100";
-    uint16_t bintracPort = 502;
     uint8_t bintracDeviceID = 1;  // Device ID from HouseLink discovery
 
     // Feeding schedule (minutes from midnight)
