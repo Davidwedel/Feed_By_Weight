@@ -192,10 +192,14 @@
                 </div>
             </div>
 
-            <div style="margin-top: 15px;">
+            <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
                 <div class="status-item">
                     <label>Weight Dispensed</label>
                     <div class="value" id="weightDispensed">0 lbs</div>
+                </div>
+                <div class="status-item">
+                    <label>Flow Rate</label>
+                    <div class="value" id="flowRate">0 lbs/min</div>
                 </div>
             </div>
         </div>
@@ -348,6 +352,7 @@
                     document.getElementById('binD').textContent = data.currentWeight[3].toFixed(2) + ' lbs';
 
                     document.getElementById('weightDispensed').textContent = data.weightDispensed.toFixed(2) + ' lbs';
+                    document.getElementById('flowRate').textContent = data.flowRate.toFixed(2) + ' lbs/min';
                 })
                 .catch(err => console.error('Status fetch error:', err));
         }

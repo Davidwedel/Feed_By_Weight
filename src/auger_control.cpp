@@ -218,6 +218,14 @@ void AugerControl::sendWarning(const char* warning) {
     Serial.printf("WARNING: %s\n", warning);
 }
 
+float AugerControl::getFlowRate() const {
+    unsigned long elapsed = getDuration();
+    if (elapsed == 0) return 0;
+
+    float elapsedMinutes = elapsed / 60.0;
+    return _weightDispensed / elapsedMinutes;
+}
+
 unsigned long AugerControl::getDuration() const {
     if (_feedStartTime == 0) return 0;
 

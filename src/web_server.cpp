@@ -262,6 +262,7 @@ String FeedWebServer::statusToJson() {
 
     doc["weightAtStart"] = _status.weightAtStart;
     doc["weightDispensed"] = _status.weightDispensed;
+    doc["flowRate"] = _status.flowRate;
     doc["augerRunning"] = _status.augerRunning;
     doc["chainRunning"] = _status.chainRunning;
     doc["bintracConnected"] = _status.bintracConnected;

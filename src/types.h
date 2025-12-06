@@ -76,6 +76,7 @@ struct SystemStatus {
     float currentWeight[4];   // A, B, C, D bins
     float weightAtStart;
     float weightDispensed;
+    float flowRate;           // lbs/min
     bool augerRunning;
     bool chainRunning;
     bool bintracConnected;

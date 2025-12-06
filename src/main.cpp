@@ -101,6 +101,7 @@ void setup() {
     systemStatus.feedStartTime = 0;
     systemStatus.weightAtStart = 0;
     systemStatus.weightDispensed = 0;
+    systemStatus.flowRate = 0;
     systemStatus.augerRunning = false;
     systemStatus.chainRunning = false;
     systemStatus.bintracConnected = false;
@@ -262,6 +263,7 @@ void updateSystemStatus() {
     systemStatus.chainRunning = augerControl.isChainRunning();
     systemStatus.feedingStage = augerControl.getStage();
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
+    systemStatus.flowRate = augerControl.getFlowRate();
 
     // Update network connection status
 #ifdef USE_ETHERNET
