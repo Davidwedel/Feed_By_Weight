@@ -175,13 +175,10 @@ bool BinTrac::modbusRead(uint16_t address, uint16_t length, uint16_t* buffer) {
     }
 
     // Connect to Modbus server
-    Serial.printf("Attempting TCP connection to %s:%d...\n", _ipAddress, _port);
     if (!client.connect(ip, _port)) {
         snprintf(_lastError, sizeof(_lastError), "TCP connection failed to %s:%d", _ipAddress, _port);
-        Serial.printf("Connection failed. Client status: %d\n", client.connected());
         return false;
     }
-    Serial.printf("TCP connected successfully!\n");
 
     // Build Modbus TCP request
     static uint16_t transactionID = 1;
