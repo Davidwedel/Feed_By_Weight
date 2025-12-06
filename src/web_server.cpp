@@ -107,8 +107,12 @@ void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *dat
     if (doc.containsKey("telegramChatID")) {
         strlcpy(_config.telegramChatID, doc["telegramChatID"], sizeof(_config.telegramChatID));
     }
+    if (doc.containsKey("telegramAllowedUsers")) {
+        strlcpy(_config.telegramAllowedUsers, doc["telegramAllowedUsers"], sizeof(_config.telegramAllowedUsers));
+    }
     if (doc.containsKey("telegramEnabled")) {
         _config.telegramEnabled = doc["telegramEnabled"];
+        Serial.printf("Set telegramEnabled = %d\n", _config.telegramEnabled);
     }
     if (doc.containsKey("autoFeedEnabled")) {
         _config.autoFeedEnabled = doc["autoFeedEnabled"];
@@ -118,9 +122,12 @@ void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *dat
     }
 
     // Save to filesystem
+    Serial.println("Saving configuration to filesystem...");
     if (_storage.saveConfig(_config)) {
+        Serial.println("Configuration saved successfully");
         request->send(200, "application/json", "{\"success\":true}");
     } else {
+        Serial.println("ERROR: Failed to save configuration");
         request->send(500, "application/json", "{\"error\":\"Failed to save configuration\"}");
     }
 }
@@ -223,6 +230,7 @@ String FeedWebServer::configToJson() {
     doc["maxRuntime"] = _config.maxRuntime;
     doc["telegramToken"] = _config.telegramToken;
     doc["telegramChatID"] = _config.telegramChatID;
+    doc["telegramAllowedUsers"] = _config.telegramAllowedUsers;
     doc["telegramEnabled"] = _config.telegramEnabled;
     doc["autoFeedEnabled"] = _config.autoFeedEnabled;
     doc["timezone"] = _config.timezone;

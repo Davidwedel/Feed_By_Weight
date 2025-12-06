@@ -175,32 +175,76 @@ void TelegramBot::sendMessage(const String& text) {
     Serial.printf("Telegram: %s\n", text.c_str());
 }
 
+bool TelegramBot::isUserAuthorized(const String& chat_id) {
+    // If no allowed users configured, allow all
+    if (strlen(_config.telegramAllowedUsers) == 0) {
+        return true;
+    }
+
+    // Parse comma-separated list of allowed chat IDs
+    String allowedList = String(_config.telegramAllowedUsers);
+    allowedList.trim();
+
+    // Check if chat_id is in the list
+    int startPos = 0;
+    while (startPos < allowedList.length()) {
+        int commaPos = allowedList.indexOf(',', startPos);
+        if (commaPos == -1) {
+            commaPos = allowedList.length();
+        }
+
+        String allowedChatId = allowedList.substring(startPos, commaPos);
+        allowedChatId.trim();
+
+        if (allowedChatId == chat_id) {
+            return true;
+        }
+
+        startPos = commaPos + 1;
+    }
+
+    return false;
+}
+
 void TelegramBot::handleNewMessages(int numNewMessages) {
     for (int i = 0; i < numNewMessages; i++) {
         String chat_id = _bot->messages[i].chat_id;
         String text = _bot->messages[i].text;
+        String from_name = _bot->messages[i].from_name;
 
-        Serial.printf("Telegram command: %s from %s\n", text.c_str(), chat_id.c_str());
+        Serial.printf("Telegram command: %s from %s (chat_id: %s)\n",
+                     text.c_str(), from_name.c_str(), chat_id.c_str());
+
+        // Check if user is authorized (use chat_id)
+        if (!isUserAuthorized(chat_id)) {
+            Serial.printf("Unauthorized chat_id: %s (%s)\n", chat_id.c_str(), from_name.c_str());
+            _bot->sendMessage(chat_id, "⛔ Unauthorized. Contact system administrator.", "");
+            continue;
+        }
 
         if (text == "/start") {
-            sendMessage("👋 Welcome to Weight Feeder Control!\n\n"
+            _bot->sendMessage(chat_id,
+                       "👋 Welcome to Weight Feeder Control!\n\n"
                        "Available commands:\n"
                        "/status - System status\n"
                        "/lastfeed - Last feeding info\n"
                        "/disable - Disable auto-feeding\n"
-                       "/enable - Enable auto-feeding");
+                       "/enable - Enable auto-feeding", "");
         }
         else if (text == "/status") {
             // Status will be sent by main program
-            sendMessage("Fetching status...");
+            _bot->sendMessage(chat_id, "Fetching status...", "");
         }
         else if (text == "/disable") {
             _config.autoFeedEnabled = false;
-            sendMessage("✋ Auto-feeding disabled");
+            _bot->sendMessage(chat_id, "✋ Auto-feeding disabled", "");
         }
         else if (text == "/enable") {
             _config.autoFeedEnabled = true;
-            sendMessage("✅ Auto-feeding enabled");
+            _bot->sendMessage(chat_id, "✅ Auto-feeding enabled", "");
+        }
+        else {
+            _bot->sendMessage(chat_id, "❓ Unknown command. Send /start for help.", "");
         }
     }
 }

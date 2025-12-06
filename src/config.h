@@ -76,6 +76,6 @@
 
 // Status update intervals
 #define STATUS_UPDATE_INTERVAL 5000    // 5 seconds
-#define TELEGRAM_UPDATE_INTERVAL 60000 // 1 minute
+#define TELEGRAM_UPDATE_INTERVAL 1000  // 1 second (for responsive bot commands)
 
 #endif // CONFIG_H

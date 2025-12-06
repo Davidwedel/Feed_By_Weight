@@ -56,6 +56,7 @@ private:
     // Handle incoming commands
     void handleNewMessages(int numNewMessages);
     void sendMessage(const String& text);
+    bool isUserAuthorized(const String& chat_id);
 };
 
 #endif // TELEGRAM_BOT_H

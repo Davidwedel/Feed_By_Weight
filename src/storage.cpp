@@ -87,7 +87,9 @@ bool Storage::configToJson(const Config& config, String& json) {
     // Telegram
     doc["telegramToken"] = config.telegramToken;
     doc["telegramChatID"] = config.telegramChatID;
+    doc["telegramAllowedUsers"] = config.telegramAllowedUsers;
     doc["telegramEnabled"] = config.telegramEnabled;
+    Serial.printf("Saving telegramEnabled = %d\n", config.telegramEnabled);
 
     // System
     doc["autoFeedEnabled"] = config.autoFeedEnabled;
@@ -130,7 +132,9 @@ bool Storage::jsonToConfig(const String& json, Config& config) {
     // Telegram
     strlcpy(config.telegramToken, doc["telegramToken"] | "", sizeof(config.telegramToken));
     strlcpy(config.telegramChatID, doc["telegramChatID"] | "", sizeof(config.telegramChatID));
+    strlcpy(config.telegramAllowedUsers, doc["telegramAllowedUsers"] | "", sizeof(config.telegramAllowedUsers));
     config.telegramEnabled = doc["telegramEnabled"] | false;
+    Serial.printf("Loaded telegramEnabled = %d\n", config.telegramEnabled);
 
     // System
     config.autoFeedEnabled = doc["autoFeedEnabled"] | true;
