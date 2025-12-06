@@ -53,7 +53,7 @@ struct Config {
 
     // System settings
     bool autoFeedEnabled = true;
-    uint8_t timezone = 0;  // UTC offset in hours
+    int8_t timezone = 0;  // UTC offset in hours (-12 to +12)
 };
 
 // Feed event record

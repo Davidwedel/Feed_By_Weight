@@ -2,24 +2,17 @@
 #define SCHEDULER_H
 
 #include <Arduino.h>
-#include <NTPClient.h>
-
-#ifdef USE_WIFI
-#include <WiFiUdp.h>
-#else
-#include <EthernetUdp.h>
-#endif
-
+#include <time.h>
 #include "types.h"
 
 class Scheduler {
 public:
     Scheduler();
 
-    // Initialize NTP client
+    // Initialize SNTP time sync
     void begin(int timezoneOffset = 0);
 
-    // Update time from NTP server
+    // Update time sync status (non-blocking)
     void update();
 
     // Check if it's time to feed
@@ -41,12 +34,6 @@ public:
     bool isTimeSynced();
 
 private:
-#ifdef USE_WIFI
-    WiFiUDP _ntpUDP;
-#else
-    EthernetUDP _ntpUDP;
-#endif
-    NTPClient* _timeClient;
     bool _initialized;
     int _timezoneOffset;  // hours
 
