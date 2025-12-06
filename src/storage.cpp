@@ -2,6 +2,9 @@
 #include "config.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
+#include <Preferences.h>
+
+Preferences prefs;
 
 Storage::Storage() {
     _initialized = false;
@@ -21,127 +24,82 @@ bool Storage::begin() {
 }
 
 bool Storage::loadConfig(Config& config) {
-    if (!_initialized) return false;
+    prefs.begin("config", true);  // read-only
 
-    if (!LittleFS.exists(CONFIG_FILE)) {
-        Serial.println("Config file not found, using defaults");
-        return saveConfig(config);  // Save default config
+    // Network
+    strlcpy(config.bintracIP, prefs.getString("bintracIP", "192.168.1.100").c_str(), sizeof(config.bintracIP));
+    config.bintracDeviceID = prefs.getUChar("bintracID", 1);
+
+    // Schedule - feed times (4 values)
+    for (int i = 0; i < 4; i++) {
+        String key = "feedTime" + String(i);
+        config.feedTimes[i] = prefs.getUShort(key.c_str(), config.feedTimes[i]);
     }
 
-    File file = LittleFS.open(CONFIG_FILE, "r");
-    if (!file) {
-        Serial.println("Failed to open config file");
-        return false;
-    }
+    // Feeding parameters
+    config.targetWeight = prefs.getFloat("targetWeight", 50.0);
+    config.weightUnit = (WeightUnit)prefs.getUChar("weightUnit", 0);
+    config.chainPreRunTime = prefs.getUShort("chainPreRun", 10);
 
-    String json = file.readString();
-    file.close();
+    // Alarm settings
+    config.alarmThreshold = prefs.getFloat("alarmThresh", 10.0);
+    config.maxRuntime = prefs.getUShort("maxRuntime", 600);
 
-    return jsonToConfig(json, config);
+    // Telegram
+    strlcpy(config.telegramToken, prefs.getString("tgToken", "").c_str(), sizeof(config.telegramToken));
+    strlcpy(config.telegramChatID, prefs.getString("tgChatID", "").c_str(), sizeof(config.telegramChatID));
+    strlcpy(config.telegramAllowedUsers, prefs.getString("tgAllowed", "").c_str(), sizeof(config.telegramAllowedUsers));
+    config.telegramEnabled = prefs.getBool("tgEnabled", false);
+
+    // System
+    config.autoFeedEnabled = prefs.getBool("autoFeed", true);
+    config.timezone = prefs.getChar("timezone", 0);
+
+    prefs.end();
+
+    Serial.println("Config loaded from NVS");
+    return true;
 }
 
 bool Storage::saveConfig(const Config& config) {
-    if (!_initialized) return false;
-
-    String json;
-    if (!configToJson(config, json)) {
-        Serial.println("Failed to serialize config");
-        return false;
-    }
-
-    File file = LittleFS.open(CONFIG_FILE, "w");
-    if (!file) {
-        Serial.println("Failed to open config file for writing");
-        return false;
-    }
-
-    file.print(json);
-    file.close();
-
-    Serial.println("Config saved successfully");
-    return true;
-}
-
-bool Storage::configToJson(const Config& config, String& json) {
-    JsonDocument doc;
+    prefs.begin("config", false);  // read-write
 
     // Network
-    doc["bintracIP"] = config.bintracIP;
-    doc["bintracDeviceID"] = config.bintracDeviceID;
+    prefs.putString("bintracIP", config.bintracIP);
+    prefs.putUChar("bintracID", config.bintracDeviceID);
 
-    // Schedule
-    JsonArray times = doc["feedTimes"].to<JsonArray>();
+    // Schedule - feed times (4 values)
     for (int i = 0; i < 4; i++) {
-        times.add(config.feedTimes[i]);
+        String key = "feedTime" + String(i);
+        prefs.putUShort(key.c_str(), config.feedTimes[i]);
     }
 
     // Feeding parameters
-    doc["targetWeight"] = config.targetWeight;
-    doc["weightUnit"] = (int)config.weightUnit;
-    doc["chainPreRunTime"] = config.chainPreRunTime;
+    prefs.putFloat("targetWeight", config.targetWeight);
+    prefs.putUChar("weightUnit", (uint8_t)config.weightUnit);
+    prefs.putUShort("chainPreRun", config.chainPreRunTime);
 
     // Alarm settings
-    doc["alarmThreshold"] = config.alarmThreshold;
-    doc["maxRuntime"] = config.maxRuntime;
+    prefs.putFloat("alarmThresh", config.alarmThreshold);
+    prefs.putUShort("maxRuntime", config.maxRuntime);
 
     // Telegram
-    doc["telegramToken"] = config.telegramToken;
-    doc["telegramChatID"] = config.telegramChatID;
-    doc["telegramAllowedUsers"] = config.telegramAllowedUsers;
-    doc["telegramEnabled"] = config.telegramEnabled;
-    Serial.printf("Saving telegramEnabled = %d\n", config.telegramEnabled);
+    prefs.putString("tgToken", config.telegramToken);
+    prefs.putString("tgChatID", config.telegramChatID);
+    prefs.putString("tgAllowed", config.telegramAllowedUsers);
+    prefs.putBool("tgEnabled", config.telegramEnabled);
 
     // System
-    doc["autoFeedEnabled"] = config.autoFeedEnabled;
-    doc["timezone"] = config.timezone;
+    prefs.putBool("autoFeed", config.autoFeedEnabled);
+    prefs.putChar("timezone", config.timezone);
 
-    json = "";
-    serializeJson(doc, json);
+    prefs.end();
+
+    Serial.println("Config saved to NVS");
     return true;
 }
 
-bool Storage::jsonToConfig(const String& json, Config& config) {
-    JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, json);
-
-    if (error) {
-        Serial.printf("JSON parse error: %s\n", error.c_str());
-        return false;
-    }
-
-    // Network
-    strlcpy(config.bintracIP, doc["bintracIP"] | "192.168.1.100", sizeof(config.bintracIP));
-    config.bintracDeviceID = doc["bintracDeviceID"] | 0;
-
-    // Schedule
-    if (doc.containsKey("feedTimes")) {
-        for (int i = 0; i < 4; i++) {
-            config.feedTimes[i] = doc["feedTimes"][i] | config.feedTimes[i];
-        }
-    }
-
-    // Feeding parameters
-    config.targetWeight = doc["targetWeight"] | 50.0;
-    config.weightUnit = (WeightUnit)(doc["weightUnit"] | 0);
-    config.chainPreRunTime = doc["chainPreRunTime"] | 10;
-
-    // Alarm settings
-    config.alarmThreshold = doc["alarmThreshold"] | 10.0;
-    config.maxRuntime = doc["maxRuntime"] | 600;
-
-    // Telegram
-    strlcpy(config.telegramToken, doc["telegramToken"] | "", sizeof(config.telegramToken));
-    strlcpy(config.telegramChatID, doc["telegramChatID"] | "", sizeof(config.telegramChatID));
-    strlcpy(config.telegramAllowedUsers, doc["telegramAllowedUsers"] | "", sizeof(config.telegramAllowedUsers));
-    config.telegramEnabled = doc["telegramEnabled"] | false;
-    Serial.printf("Loaded telegramEnabled = %d\n", config.telegramEnabled);
-
-    // System
-    config.autoFeedEnabled = doc["autoFeedEnabled"] | true;
-    config.timezone = doc["timezone"] | 0;
-
-    return true;
-}
+// Removed configToJson and jsonToConfig - no longer needed with NVS
 
 bool Storage::addFeedEvent(const FeedEvent& event) {
     if (!_initialized) return false;

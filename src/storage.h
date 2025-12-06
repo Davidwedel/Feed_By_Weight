@@ -26,10 +26,6 @@ public:
 
 private:
     bool _initialized;
-
-    // JSON conversion helpers
-    bool configToJson(const Config& config, String& json);
-    bool jsonToConfig(const String& json, Config& config);
 };
 
 #endif // STORAGE_H
