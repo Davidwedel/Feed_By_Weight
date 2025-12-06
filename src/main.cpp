@@ -333,7 +333,7 @@ void handleFeedingComplete() {
 
     // Create feed event record
     FeedEvent event;
-    event.timestamp = scheduler.getCurrentTime();
+    event.timestamp = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
     event.feedCycle = currentFeedCycle;
     event.targetWeight = config.targetWeight;
     event.actualWeight = augerControl.getWeightDispensed();
@@ -343,6 +343,10 @@ void handleFeedingComplete() {
 
     // Save to history
     storage.addFeedEvent(event);
+
+    if (!scheduler.isTimeSynced()) {
+        Serial.println("Warning: Time not synced, event saved with timestamp 0");
+    }
 
     // Mark feeding as complete for this cycle
     scheduler.markFeedingComplete(currentFeedCycle);
@@ -363,7 +367,7 @@ void handleFeedingFailed() {
 
     // Create feed event record with alarm
     FeedEvent event;
-    event.timestamp = scheduler.getCurrentTime();
+    event.timestamp = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
     event.feedCycle = currentFeedCycle;
     event.targetWeight = config.targetWeight;
     event.actualWeight = augerControl.getWeightDispensed();
@@ -373,6 +377,10 @@ void handleFeedingFailed() {
 
     // Save to history
     storage.addFeedEvent(event);
+
+    if (!scheduler.isTimeSynced()) {
+        Serial.println("Warning: Time not synced, event saved with timestamp 0");
+    }
 
     // Send Telegram alarm
     if (config.telegramEnabled) {

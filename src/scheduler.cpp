@@ -34,7 +34,7 @@ void Scheduler::update() {
         Serial.println("✓ Time synchronized with NTP");
         char timeStr[32];
         getCurrentTimeStr(timeStr, sizeof(timeStr));
-        Serial.printf("Current time: %s\n", timeStr);
+        Serial.printf("Current time: %s (timestamp: %lu)\n", timeStr, getCurrentTime());
     }
 
     // Check for day rollover to reset feeding completions
