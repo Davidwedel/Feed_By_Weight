@@ -10,6 +10,8 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _bot = nullptr;
     _initialized = false;
     _lastUpdateTime = 0;
+    _statusRequested = false;
+    _statusRequestChatId = "";
 }
 
 bool TelegramBot::begin() {
@@ -128,8 +130,8 @@ void TelegramBot::sendDailySummary(FeedEvent* events, int count) {
     sendMessage(message);
 }
 
-void TelegramBot::sendStatus(const SystemStatus& status) {
-    if (!isEnabled()) return;
+void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) {
+    if (!_bot) return;
 
     char message[512];
     const char* stateStr[] = {"IDLE", "WAITING", "FEEDING", "ALARM", "MANUAL", "ERROR"};
@@ -159,7 +161,8 @@ void TelegramBot::sendStatus(const SystemStatus& status) {
              status.bintracConnected ? "Connected" : "Disconnected",
              status.networkConnected ? "Connected" : "Disconnected");
 
-    sendMessage(message);
+    _bot->sendMessage(chat_id, message, "Markdown");
+    Serial.printf("Telegram status sent to %s\n", chat_id.c_str());
 }
 
 bool TelegramBot::isEnabled() {
@@ -227,13 +230,13 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "👋 Welcome to Weight Feeder Control!\n\n"
                        "Available commands:\n"
                        "/status - System status\n"
-                       "/lastfeed - Last feeding info\n"
                        "/disable - Disable auto-feeding\n"
                        "/enable - Enable auto-feeding", "");
         }
         else if (text == "/status") {
-            // Status will be sent by main program
-            _bot->sendMessage(chat_id, "Fetching status...", "");
+            // Trigger status request
+            _statusRequested = true;
+            _statusRequestChatId = chat_id;
         }
         else if (text == "/disable") {
             _config.autoFeedEnabled = false;

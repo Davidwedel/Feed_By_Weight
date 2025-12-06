@@ -35,10 +35,14 @@ public:
     void sendDailySummary(FeedEvent* events, int count);
 
     // Send status update
-    void sendStatus(const SystemStatus& status);
+    void sendStatus(const SystemStatus& status, const String& chat_id);
 
     // Check if bot is enabled and configured
     bool isEnabled();
+
+    // Check if status was requested
+    bool isStatusRequested() { return _statusRequested; }
+    String getStatusRequestChatId() { _statusRequested = false; return _statusRequestChatId; }
 
 private:
     Config& _config;
@@ -52,6 +56,8 @@ private:
     UniversalTelegramBot* _bot;
     unsigned long _lastUpdateTime;
     bool _initialized;
+    bool _statusRequested;
+    String _statusRequestChatId;
 
     // Handle incoming commands
     void handleNewMessages(int numNewMessages);

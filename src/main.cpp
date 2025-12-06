@@ -119,6 +119,12 @@ void loop() {
     // Update Telegram bot
     if (config.telegramEnabled) {
         telegramBot->update();
+
+        // Send status if requested
+        if (telegramBot->isStatusRequested()) {
+            String chatId = telegramBot->getStatusRequestChatId();
+            telegramBot->sendStatus(systemStatus, chatId);
+        }
     }
 
     // Handle web server requests
