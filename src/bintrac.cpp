@@ -1,12 +1,19 @@
 #include "bintrac.h"
 #include "config.h"
-#include <ModbusIP_ESP8266.h>
 
-// Global Modbus IP client
-ModbusIP mb;
+#ifdef USE_WIFI
+#include <WiFi.h>
+#include <WiFiClient.h>
+#endif
+
+#ifdef USE_ETHERNET
+#include <Ethernet.h>
+#include <EthernetClient.h>
+#endif
 
 BinTrac::BinTrac() {
     _connected = false;
+    _port = 502;
     _deviceID = 1;
     _lastReadTime = 0;
     _lastConnectAttempt = 0;
@@ -14,14 +21,15 @@ BinTrac::BinTrac() {
     strcpy(_lastError, "Not initialized");
 }
 
-bool BinTrac::begin(const char* ipAddress, uint8_t deviceID) {
-    setConnection(ipAddress, deviceID);
+bool BinTrac::begin(const char* ipAddress, uint16_t port, uint8_t deviceID) {
+    setConnection(ipAddress, port, deviceID);
     return reconnect();
 }
 
-void BinTrac::setConnection(const char* ipAddress, uint8_t deviceID) {
+void BinTrac::setConnection(const char* ipAddress, uint16_t port, uint8_t deviceID) {
     strncpy(_ipAddress, ipAddress, sizeof(_ipAddress) - 1);
     _ipAddress[sizeof(_ipAddress) - 1] = '\0';
+    _port = port;
     _deviceID = deviceID;
 }
 
@@ -38,39 +46,61 @@ bool BinTrac::reconnect() {
         return false;
     }
 
-    // Test connection by reading first bin
+    // Test connection by reading first bin (2 registers = 1 weight value)
     uint16_t testBuffer[2];
-    _connected = modbusRead(MODBUS_BIN_A_ADDR, 2, testBuffer);
+    bool success = modbusRead(MODBUS_BIN_A_ADDR, 2, testBuffer);
 
-    if (_connected) {
-        snprintf(_lastError, sizeof(_lastError), "Connected");
-        Serial.printf("BinTrac connected to %s (ID: %d)\n", _ipAddress, _deviceID);
+    if (success) {
+        // Verify we got valid data (not just zeros or timeout)
+        // Valid data should have at least some non-zero values or be -32767 (disabled bin marker)
+        int32_t testValue = parseWeight(testBuffer);
+        if (testValue != 0 || testBuffer[0] == 0xFFFF) {
+            _connected = true;
+            snprintf(_lastError, sizeof(_lastError), "Connected");
+            Serial.printf("BinTrac connected to %s:%d (ID: %d)\n", _ipAddress, _port, _deviceID);
+        } else {
+            _connected = false;
+            snprintf(_lastError, sizeof(_lastError), "Connected but no valid data from %s:%d", _ipAddress, _port);
+        }
     } else {
-        snprintf(_lastError, sizeof(_lastError), "Connection failed to %s", _ipAddress);
+        _connected = false;
+        // Error message already set by modbusRead
     }
 
     return _connected;
 }
 
 bool BinTrac::readAllBins(float weights[4]) {
-    // Read all 8 registers (4 bins x 2 registers each)
-    uint16_t buffer[8];
+    // NOTE: This HouseLink only allows reading 6 registers (3 bins)
+    // Bins A, B, C work. Bin D must be read separately or returns error.
+    uint16_t buffer[6];
 
     if (!modbusRead(MODBUS_ALL_BINS_ADDR, MODBUS_ALL_BINS_LEN, buffer)) {
         _connected = false;
         return false;
     }
 
-    // Parse each bin (each weight is 2 x 16-bit registers = 32-bit signed int)
-    for (int i = 0; i < 4; i++) {
-        int32_t rawWeight = parseWeight(&buffer[i * 2]);
+    // Parse bins A, B, C (format: each is 2 registers, but only first register is the value)
+    // This HouseLink doesn't match the manual - it's not 32-bit big-endian!
+    for (int i = 0; i < 3; i++) {
+        int32_t rawWeight = (int16_t)buffer[i * 2];  // Cast to signed 16-bit
 
         // Check for disabled bin (-32767 indicates bin not enabled)
-        if (rawWeight == -32767 || rawWeight == 0xFFFF8001) {
+        if (rawWeight == -32767) {
             weights[i] = 0.0;
         } else {
             weights[i] = (float)rawWeight;
         }
+    }
+
+    // Try to read bin D separately
+    uint16_t binDBuffer[2];
+    if (modbusRead(MODBUS_BIN_D_ADDR, 2, binDBuffer)) {
+        int32_t rawWeight = (int16_t)binDBuffer[0];
+        weights[3] = (rawWeight == -32767) ? 0.0 : (float)rawWeight;
+    } else {
+        // Bin D not available
+        weights[3] = 0.0;
     }
 
     _connected = true;
@@ -127,31 +157,121 @@ int32_t BinTrac::parseWeight(uint16_t* data) {
 }
 
 bool BinTrac::modbusRead(uint16_t address, uint16_t length, uint16_t* buffer) {
+    // Clear buffer before reading
+    memset(buffer, 0, length * sizeof(uint16_t));
+
+    // Create TCP client
+#ifdef USE_WIFI
+    WiFiClient client;
+#else
+    EthernetClient client;
+#endif
+
+    // Parse IP address
     IPAddress ip;
     if (!ip.fromString(_ipAddress)) {
         snprintf(_lastError, sizeof(_lastError), "Invalid IP address: %s", _ipAddress);
         return false;
     }
 
-    // Create Modbus transaction
-    mb.readIreg(ip, address, buffer, length, nullptr, _deviceID);
+    // Connect to Modbus server
+    Serial.printf("Attempting TCP connection to %s:%d...\n", _ipAddress, _port);
+    if (!client.connect(ip, _port)) {
+        snprintf(_lastError, sizeof(_lastError), "TCP connection failed to %s:%d", _ipAddress, _port);
+        Serial.printf("Connection failed. Client status: %d\n", client.connected());
+        return false;
+    }
+    Serial.printf("TCP connected successfully!\n");
+
+    // Build Modbus TCP request
+    static uint16_t transactionID = 1;
+    uint8_t request[12];
+
+    // Transaction ID (2 bytes)
+    request[0] = (transactionID >> 8) & 0xFF;
+    request[1] = transactionID & 0xFF;
+    transactionID++;
+
+    // Protocol ID (2 bytes, always 0 for Modbus TCP)
+    request[2] = 0;
+    request[3] = 0;
+
+    // Length (2 bytes) - remaining bytes after this field
+    request[4] = 0;
+    request[5] = 6;  // Unit ID (1) + Function Code (1) + Address (2) + Count (2)
+
+    // Unit ID (1 byte)
+    request[6] = _deviceID;
+
+    // Function Code (1 byte) - 4 = Read Input Registers
+    request[7] = 4;
+
+    // Starting Address (2 bytes)
+    request[8] = (address >> 8) & 0xFF;
+    request[9] = address & 0xFF;
+
+    // Quantity of Registers (2 bytes)
+    request[10] = (length >> 8) & 0xFF;
+    request[11] = length & 0xFF;
+
+    // Send request
+    client.write(request, 12);
+    client.flush();
 
     // Wait for response with timeout
     unsigned long startTime = millis();
-    while (millis() - startTime < BINTRAC_TIMEOUT) {
-        mb.task();
+    while (client.available() < 9 && (millis() - startTime < BINTRAC_TIMEOUT)) {
         delay(10);
-
-        // Check if transaction completed
-        // Note: This is simplified - actual implementation would check transaction status
-        // The modbus library handles this internally
     }
 
-    // Verify we got data (simplified check)
-    if (buffer[0] == 0 && buffer[1] == 0 && length > 2) {
-        snprintf(_lastError, sizeof(_lastError), "No response from device");
+    if (client.available() < 9) {
+        client.stop();
+        snprintf(_lastError, sizeof(_lastError), "Timeout waiting for response from %s:%d", _ipAddress, _port);
         return false;
     }
 
+    // Read response header (9 bytes)
+    uint8_t response[9];
+    client.readBytes(response, 9);
+
+    // Check function code for errors
+    if (response[7] & 0x80) {
+        uint8_t exceptionCode = response[8];
+        client.stop();
+        snprintf(_lastError, sizeof(_lastError), "Modbus exception code %d from %s:%d",
+                 exceptionCode, _ipAddress, _port);
+        return false;
+    }
+
+    // Byte count
+    uint8_t byteCount = response[8];
+
+    if (byteCount != length * 2) {
+        client.stop();
+        snprintf(_lastError, sizeof(_lastError), "Unexpected byte count: expected %d, got %d",
+                 length * 2, byteCount);
+        return false;
+    }
+
+    // Wait for data bytes
+    startTime = millis();
+    while (client.available() < byteCount && (millis() - startTime < BINTRAC_TIMEOUT)) {
+        delay(10);
+    }
+
+    if (client.available() < byteCount) {
+        client.stop();
+        snprintf(_lastError, sizeof(_lastError), "Timeout waiting for data bytes");
+        return false;
+    }
+
+    // Read register values (big-endian)
+    for (uint16_t i = 0; i < length; i++) {
+        uint8_t high = client.read();
+        uint8_t low = client.read();
+        buffer[i] = (high << 8) | low;
+    }
+
+    client.stop();
     return true;
 }

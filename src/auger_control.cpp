@@ -51,6 +51,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
 
     // Start with chain only
     _stage = FeedingStage::CHAIN_ONLY;
+    Serial.println("About to start chain...");
     controlChain(true);
 
     Serial.printf("Feeding started: Target=%.2f, ChainPreRun=%ds, MaxTime=%ds\n",
@@ -66,6 +67,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     if (_startWeight == 0 && currentTotalWeight > 0) {
         _startWeight = currentTotalWeight;
         _weightAtMinuteStart = currentTotalWeight;
+        Serial.printf("Start weight initialized: %.2f lbs\n", _startWeight);
     }
 
     // Calculate weight dispensed (weight should decrease as feed goes out)
@@ -87,6 +89,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Check if chain pre-run time has elapsed
             if ((millis() - _chainStartTime) / 1000 >= _chainPreRunTime) {
                 // Start auger as well
+                Serial.printf("Chain pre-run complete (%ds), starting auger...\n", _chainPreRunTime);
                 controlAuger(true);
                 _stage = FeedingStage::BOTH_RUNNING;
                 Serial.println("Stage: BOTH_RUNNING");
@@ -188,11 +191,11 @@ void AugerControl::setChain(bool state) {
 void AugerControl::controlAuger(bool state) {
     digitalWrite(RELAY_1_PIN, state ? HIGH : LOW);
     _augerRunning = state;
-    Serial.printf("Auger: %s\n", state ? "ON" : "OFF");
+    Serial.printf("GPIO %d (Auger): %s\n", RELAY_1_PIN, state ? "ON (HIGH)" : "OFF (LOW)");
 }
 
 void AugerControl::controlChain(bool state) {
     digitalWrite(RELAY_2_PIN, state ? HIGH : LOW);
     _chainRunning = state;
-    Serial.printf("Chain: %s\n", state ? "ON" : "OFF");
+    Serial.printf("GPIO %d (Chain): %s\n", RELAY_2_PIN, state ? "ON (HIGH)" : "OFF (LOW)");
 }

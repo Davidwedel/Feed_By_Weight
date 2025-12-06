@@ -4,9 +4,20 @@
 // Version
 #define FIRMWARE_VERSION "1.0.0"
 
+// Network Configuration
+// Comment out one of these to select network type
+//#define USE_ETHERNET
+ #define USE_WIFI
+
+#ifdef USE_WIFI
+// WiFi credentials
+#define WIFI_SSID "CW Wifi"
+#define WIFI_PASSWORD "Thewedels"
+#endif
+
 // Relay pins (LilyGo 8-channel board)
-#define RELAY_1_PIN 32  // Auger
-#define RELAY_2_PIN 33  // Chain
+#define RELAY_1_PIN 33  // Auger (swapped - physical wiring was backwards)
+#define RELAY_2_PIN 32  // Chain
 #define RELAY_3_PIN 25
 #define RELAY_4_PIN 26
 #define RELAY_5_PIN 27
@@ -33,13 +44,16 @@
 #define BINTRAC_TIMEOUT 5000    // milliseconds
 #define BINTRAC_RETRY_DELAY 2000
 
-// BinTrac Modbus addresses (from manual)
+// BinTrac Modbus addresses
+// NOTE: This HouseLink firmware differs from manual!
+// - Only supports reading 6 registers max (bins A, B, C)
+// - Bin D not accessible via single read
 #define MODBUS_BIN_A_ADDR 1000
 #define MODBUS_BIN_B_ADDR 1002
 #define MODBUS_BIN_C_ADDR 1004
 #define MODBUS_BIN_D_ADDR 1006
 #define MODBUS_ALL_BINS_ADDR 1000
-#define MODBUS_ALL_BINS_LEN 8
+#define MODBUS_ALL_BINS_LEN 6  // Changed from 8 - this HouseLink only supports 6!
 #define MODBUS_FUNCTION_CODE 4  // Input register
 
 // Feeding control constants

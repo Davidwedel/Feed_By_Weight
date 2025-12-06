@@ -27,18 +27,12 @@ void Scheduler::begin(int timezoneOffset) {
 void Scheduler::update() {
     if (!_timeClient) return;
 
-    _timeClient->update();
+    // TODO: NTP sync is disabled because it blocks the main loop
+    // For now, scheduled feeding won't work, but manual feeding will
+    // To enable: need to implement non-blocking NTP or use separate task
 
     // Check for day rollover to reset feeding completions
-    checkDayRollover();
-
-    if (_timeClient->isTimeSet() && !_initialized) {
-        _initialized = true;
-        Serial.println("Time synchronized with NTP");
-        char timeStr[32];
-        getCurrentTimeStr(timeStr, sizeof(timeStr));
-        Serial.printf("Current time: %s\n", timeStr);
-    }
+    // checkDayRollover();  // Disabled since time not synced
 }
 
 bool Scheduler::shouldFeed(const uint16_t feedTimes[4], uint8_t& feedCycle) {

@@ -3,9 +3,17 @@
 
 #include <Arduino.h>
 #include <UniversalTelegramBot.h>
+#include "config.h"
+#include "types.h"
+
+#ifdef USE_ETHERNET
 #include <SSLClient.h>
 #include <EthernetClient.h>
-#include "types.h"
+#endif
+
+#ifdef USE_WIFI
+#include <WiFiClientSecure.h>
+#endif
 
 class TelegramBot {
 public:
@@ -34,8 +42,13 @@ public:
 
 private:
     Config& _config;
+#ifdef USE_ETHERNET
     EthernetClient _ethClient;
     SSLClient _client;
+#endif
+#ifdef USE_WIFI
+    WiFiClientSecure _client;
+#endif
     UniversalTelegramBot* _bot;
     unsigned long _lastUpdateTime;
     bool _initialized;

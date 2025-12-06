@@ -9,7 +9,7 @@ public:
     BinTrac();
 
     // Initialize Modbus TCP client
-    bool begin(const char* ipAddress, uint8_t deviceID = 1);
+    bool begin(const char* ipAddress, uint16_t port = 502, uint8_t deviceID = 1);
 
     // Read all bin weights (returns true if successful)
     bool readAllBins(float weights[4]);
@@ -26,11 +26,12 @@ public:
     // Get last error message
     const char* getLastError();
 
-    // Update IP address and device ID
-    void setConnection(const char* ipAddress, uint8_t deviceID);
+    // Update IP address, port, and device ID
+    void setConnection(const char* ipAddress, uint16_t port, uint8_t deviceID);
 
 private:
     char _ipAddress[16];
+    uint16_t _port;
     uint8_t _deviceID;
     bool _connected;
     char _lastError[128];

@@ -67,6 +67,7 @@ bool Storage::configToJson(const Config& config, String& json) {
 
     // Network
     doc["bintracIP"] = config.bintracIP;
+    doc["bintracPort"] = config.bintracPort;
     doc["bintracDeviceID"] = config.bintracDeviceID;
 
     // Schedule
@@ -109,6 +110,7 @@ bool Storage::jsonToConfig(const String& json, Config& config) {
 
     // Network
     strlcpy(config.bintracIP, doc["bintracIP"] | "192.168.1.100", sizeof(config.bintracIP));
+    config.bintracPort = doc["bintracPort"] | 502;
     config.bintracDeviceID = doc["bintracDeviceID"] | 0;
 
     // Schedule

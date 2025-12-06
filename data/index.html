@@ -223,6 +223,11 @@
                 </div>
 
                 <div class="form-group">
+                    <label>BinTrac Port</label>
+                    <input type="number" id="bintracPort" min="1" max="65535" placeholder="502">
+                </div>
+
+                <div class="form-group">
                     <label>BinTrac Device ID (0 = auto-discover)</label>
                     <input type="number" id="bintracDeviceID" min="0" max="255">
                 </div>
@@ -248,13 +253,13 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Alarm Threshold (weight/minute)</label>
+                    <label>Alarm Threshold (minimum lbs/minute)</label>
                     <input type="number" id="alarmThreshold" step="0.1" min="0">
                 </div>
 
                 <div class="form-group">
-                    <label>Maximum Runtime (seconds)</label>
-                    <input type="number" id="maxRuntime" min="0">
+                    <label>Maximum Runtime (minutes)</label>
+                    <input type="number" id="maxRuntime" min="0" placeholder="10">
                 </div>
 
                 <div class="form-group">
@@ -332,11 +337,12 @@
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('bintracIP').value = data.bintracIP;
+                    document.getElementById('bintracPort').value = data.bintracPort;
                     document.getElementById('bintracDeviceID').value = data.bintracDeviceID;
                     document.getElementById('targetWeight').value = data.targetWeight;
                     document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
                     document.getElementById('alarmThreshold').value = data.alarmThreshold;
-                    document.getElementById('maxRuntime').value = data.maxRuntime;
+                    document.getElementById('maxRuntime').value = Math.round(data.maxRuntime / 60);
                     document.getElementById('timezone').value = data.timezone;
 
                     for (let i = 0; i < 4; i++) {
@@ -362,12 +368,13 @@
 
             const config = {
                 bintracIP: document.getElementById('bintracIP').value,
+                bintracPort: parseInt(document.getElementById('bintracPort').value),
                 bintracDeviceID: parseInt(document.getElementById('bintracDeviceID').value),
                 feedTimes: feedTimes,
                 targetWeight: parseFloat(document.getElementById('targetWeight').value),
                 chainPreRunTime: parseInt(document.getElementById('chainPreRunTime').value),
                 alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
-                maxRuntime: parseInt(document.getElementById('maxRuntime').value),
+                maxRuntime: parseInt(document.getElementById('maxRuntime').value) * 60,
                 timezone: parseInt(document.getElementById('timezone').value)
             };
 

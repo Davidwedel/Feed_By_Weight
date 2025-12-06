@@ -2,7 +2,13 @@
 #define WEB_SERVER_H
 
 #include <Arduino.h>
-#include <WebServer.h>
+#ifdef USE_WIFI
+#include <WiFi.h>
+#endif
+#ifdef USE_ETHERNET
+#include <Ethernet.h>
+#endif
+#include <ESPAsyncWebServer.h>
 #include "types.h"
 #include "storage.h"
 #include "auger_control.h"
@@ -17,10 +23,10 @@ public:
     void begin();
 
     // Handle client requests (call in main loop)
-    void handleClient();
+    void handleClient();  // No-op for async server, kept for compatibility
 
 private:
-    WebServer* _server;
+    AsyncWebServer* _server;
     Storage& _storage;
     AugerControl& _augerControl;
     BinTrac& _bintrac;
@@ -28,20 +34,18 @@ private:
     SystemStatus& _status;
 
     // HTTP handlers
-    void handleRoot();
-    void handleGetStatus();
-    void handleGetConfig();
-    void handleSetConfig();
-    void handleGetHistory();
-    void handleClearHistory();
-    void handleManualControl();
-    void handleStartFeed();
-    void handleStopFeed();
-    void handleNotFound();
+    void handleRoot(AsyncWebServerRequest *request);
+    void handleGetStatus(AsyncWebServerRequest *request);
+    void handleGetConfig(AsyncWebServerRequest *request);
+    void handleSetConfig(AsyncWebServerRequest *request, uint8_t *data, size_t len);
+    void handleGetHistory(AsyncWebServerRequest *request);
+    void handleClearHistory(AsyncWebServerRequest *request);
+    void handleManualControl(AsyncWebServerRequest *request, uint8_t *data, size_t len);
+    void handleStartFeed(AsyncWebServerRequest *request);
+    void handleStopFeed(AsyncWebServerRequest *request);
+    void handleNotFound(AsyncWebServerRequest *request);
 
     // Utility functions
-    void sendJsonResponse(int code, const char* json);
-    void sendErrorResponse(int code, const char* message);
     String configToJson();
     String statusToJson();
     String historyToJson();

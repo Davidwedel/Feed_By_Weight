@@ -2,9 +2,11 @@
 #include "config.h"
 #include <time.h>
 
-// Note: SSLClient needs trust anchors, but we'll use insecure mode
-// analog_pin (A0) is used for random number generation
-TelegramBot::TelegramBot(Config& config) : _config(config), _client(_ethClient, nullptr, 0, A0) {
+TelegramBot::TelegramBot(Config& config) : _config(config)
+#ifdef USE_ETHERNET
+    , _client(_ethClient, nullptr, 0, A0)  // SSLClient with insecure mode
+#endif
+{
     _bot = nullptr;
     _initialized = false;
     _lastUpdateTime = 0;
@@ -16,19 +18,30 @@ bool TelegramBot::begin() {
         return false;
     }
 
+#ifdef USE_ETHERNET
     Serial.println("Initializing Telegram bot over Ethernet...");
-
     // Note: Using nullptr trust anchors = no certificate validation (insecure)
     // For production, add proper Telegram API certificates
+#endif
+
+#ifdef USE_WIFI
+    Serial.println("Initializing Telegram bot over WiFi...");
+    _client.setInsecure();  // Skip certificate validation (insecure)
+    // For production, use _client.setCACert() with Telegram API certificate
+#endif
 
     // Initialize Telegram bot with SSL client
     _bot = new UniversalTelegramBot(_config.telegramToken, _client);
 
     _initialized = true;
+#ifdef USE_ETHERNET
     Serial.println("Telegram bot initialized (SSL over Ethernet)");
-
-    // Send startup message
     sendMessage("🤖 Weight Feeder System Online (Ethernet)");
+#endif
+#ifdef USE_WIFI
+    Serial.println("Telegram bot initialized (SSL over WiFi)");
+    sendMessage("🤖 Weight Feeder System Online (WiFi)");
+#endif
 
     return true;
 }

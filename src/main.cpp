@@ -1,6 +1,11 @@
 #include <Arduino.h>
 #include <SPI.h>
+#ifdef USE_ETHERNET
 #include <Ethernet.h>
+#endif
+#ifdef USE_WIFI
+#include <WiFi.h>
+#endif
 #include "config.h"
 #include "types.h"
 #include "storage.h"
@@ -24,10 +29,10 @@ TelegramBot* telegramBot;
 uint8_t currentFeedCycle = 0;
 unsigned long lastBintracRead = 0;
 unsigned long lastStatusUpdate = 0;
-bool ethConnected = false;
+bool networkConnected = false;
 
 // Function declarations
-void setupEthernet();
+void setupNetwork();
 void updateBinWeights();
 void updateSystemStatus();
 void runStateMachine();
@@ -63,15 +68,15 @@ void setup() {
         Serial.println("Using default configuration");
     }
 
-    // Initialize Ethernet
-    setupEthernet();
+    // Initialize Network
+    setupNetwork();
 
     // Initialize auger control
     augerControl.begin();
 
     // Initialize BinTrac
-    Serial.printf("Connecting to BinTrac at %s...\n", config.bintracIP);
-    if (bintrac.begin(config.bintracIP, config.bintracDeviceID)) {
+    Serial.printf("Connecting to BinTrac at %s:%d...\n", config.bintracIP, config.bintracPort);
+    if (bintrac.begin(config.bintracIP, config.bintracPort, config.bintracDeviceID)) {
         Serial.println("BinTrac connected");
     } else {
         Serial.printf("BinTrac connection failed: %s\n", bintrac.getLastError());
@@ -99,7 +104,7 @@ void setup() {
     systemStatus.augerRunning = false;
     systemStatus.chainRunning = false;
     systemStatus.bintracConnected = false;
-    systemStatus.networkConnected = ethConnected;
+    systemStatus.networkConnected = networkConnected;
     systemStatus.lastBintracUpdate = 0;
     strcpy(systemStatus.lastError, "");
 
@@ -140,7 +145,8 @@ void loop() {
     delay(10);
 }
 
-void setupEthernet() {
+void setupNetwork() {
+#ifdef USE_ETHERNET
     Serial.println("Initializing W5500 Ethernet...");
 
     // Initialize SPI
@@ -172,21 +178,65 @@ void setupEthernet() {
         Serial.println("Ethernet connected");
         Serial.print("IP Address: ");
         Serial.println(Ethernet.localIP());
-        ethConnected = true;
+        networkConnected = true;
     } else {
         Serial.println("Ethernet cable not connected");
         Serial.print("IP Address: ");
         Serial.println(Ethernet.localIP());
-        ethConnected = false;
+        networkConnected = false;
     }
+#endif
+
+#ifdef USE_WIFI
+    Serial.println("Initializing WiFi...");
+    Serial.printf("Connecting to %s...\n", WIFI_SSID);
+
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+    // Wait for connection (timeout after 30 seconds)
+    int attempts = 0;
+    while (WiFi.status() != WL_CONNECTED && attempts < 60) {
+        delay(500);
+        Serial.print(".");
+        attempts++;
+    }
+
+    if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nWiFi connected");
+        Serial.print("IP Address: ");
+        Serial.println(WiFi.localIP());
+        Serial.print("Gateway: ");
+        Serial.println(WiFi.gatewayIP());
+        Serial.print("Subnet: ");
+        Serial.println(WiFi.subnetMask());
+        Serial.print("DNS: ");
+        Serial.println(WiFi.dnsIP());
+        networkConnected = true;
+    } else {
+        Serial.println("\nWiFi connection failed");
+        networkConnected = false;
+    }
+#endif
 }
 
 void updateBinWeights() {
     if (bintrac.readAllBins(systemStatus.currentWeight)) {
         systemStatus.bintracConnected = true;
         systemStatus.lastBintracUpdate = millis();
+
+        // Debug: print weights every 10 reads
+        static int readCount = 0;
+        if (++readCount % 10 == 0) {
+            Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f\n",
+                systemStatus.currentWeight[0],
+                systemStatus.currentWeight[1],
+                systemStatus.currentWeight[2],
+                systemStatus.currentWeight[3]);
+        }
     } else {
         systemStatus.bintracConnected = false;
+        Serial.printf("BinTrac read failed: %s\n", bintrac.getLastError());
 
         // Try to reconnect
         if (millis() - systemStatus.lastBintracUpdate > 30000) {
@@ -201,7 +251,15 @@ void updateSystemStatus() {
     systemStatus.chainRunning = augerControl.isChainRunning();
     systemStatus.feedingStage = augerControl.getStage();
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
-    systemStatus.networkConnected = ethConnected;
+
+    // Update network connection status
+#ifdef USE_ETHERNET
+    networkConnected = (Ethernet.linkStatus() == LinkON);
+#endif
+#ifdef USE_WIFI
+    networkConnected = (WiFi.status() == WL_CONNECTED);
+#endif
+    systemStatus.networkConnected = networkConnected;
 }
 
 void runStateMachine() {

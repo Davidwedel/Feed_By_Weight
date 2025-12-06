@@ -7,38 +7,44 @@ FeedWebServer::FeedWebServer(Storage& storage, AugerControl& augerControl, BinTr
                              Config& config, SystemStatus& status)
     : _storage(storage), _augerControl(augerControl), _bintrac(bintrac),
       _config(config), _status(status) {
-    _server = new WebServer(WEB_SERVER_PORT);
+    _server = new AsyncWebServer(WEB_SERVER_PORT);
 }
 
 void FeedWebServer::begin() {
     // API endpoints
-    _server->on("/api/status", HTTP_GET, [this]() { handleGetStatus(); });
-    _server->on("/api/config", HTTP_GET, [this]() { handleGetConfig(); });
-    _server->on("/api/config", HTTP_POST, [this]() { handleSetConfig(); });
-    _server->on("/api/history", HTTP_GET, [this]() { handleGetHistory(); });
-    _server->on("/api/history", HTTP_DELETE, [this]() { handleClearHistory(); });
-    _server->on("/api/manual", HTTP_POST, [this]() { handleManualControl(); });
-    _server->on("/api/feed/start", HTTP_POST, [this]() { handleStartFeed(); });
-    _server->on("/api/feed/stop", HTTP_POST, [this]() { handleStopFeed(); });
+    _server->on("/api/status", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetStatus(request); });
+    _server->on("/api/config", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetConfig(request); });
+    _server->on("/api/config", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleSetConfig(request, data, len);
+        });
+    _server->on("/api/history", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetHistory(request); });
+    _server->on("/api/history", HTTP_DELETE, [this](AsyncWebServerRequest *request) { handleClearHistory(request); });
+    _server->on("/api/manual", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
+        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+            handleManualControl(request, data, len);
+        });
+    _server->on("/api/feed/start", HTTP_POST, [this](AsyncWebServerRequest *request) { handleStartFeed(request); });
+    _server->on("/api/feed/stop", HTTP_POST, [this](AsyncWebServerRequest *request) { handleStopFeed(request); });
 
     // Serve main page
-    _server->on("/", HTTP_GET, [this]() { handleRoot(); });
+    _server->on("/", HTTP_GET, [this](AsyncWebServerRequest *request) { handleRoot(request); });
 
     // 404 handler
-    _server->onNotFound([this]() { handleNotFound(); });
+    _server->onNotFound([this](AsyncWebServerRequest *request) { handleNotFound(request); });
 
     _server->begin();
     Serial.printf("Web server started on port %d\n", WEB_SERVER_PORT);
 }
 
 void FeedWebServer::handleClient() {
-    _server->handleClient();
+    // No-op for async server
 }
 
-void FeedWebServer::handleRoot() {
+void FeedWebServer::handleRoot(AsyncWebServerRequest *request) {
     // Serve index.html from LittleFS
     if (!LittleFS.exists("/index.html")) {
-        _server->send(200, "text/html",
+        request->send(200, "text/html",
             "<html><body><h1>Weight Feeder Control</h1>"
             "<p>Web interface not installed. Use API endpoints:</p>"
             "<ul><li>/api/status</li><li>/api/config</li><li>/api/history</li></ul>"
@@ -46,39 +52,34 @@ void FeedWebServer::handleRoot() {
         return;
     }
 
-    File file = LittleFS.open("/index.html", "r");
-    _server->streamFile(file, "text/html");
-    file.close();
+    request->send(LittleFS, "/index.html", "text/html");
 }
 
-void FeedWebServer::handleGetStatus() {
+void FeedWebServer::handleGetStatus(AsyncWebServerRequest *request) {
     String json = statusToJson();
-    sendJsonResponse(200, json.c_str());
+    request->send(200, "application/json", json);
 }
 
-void FeedWebServer::handleGetConfig() {
+void FeedWebServer::handleGetConfig(AsyncWebServerRequest *request) {
     String json = configToJson();
-    sendJsonResponse(200, json.c_str());
+    request->send(200, "application/json", json);
 }
 
-void FeedWebServer::handleSetConfig() {
-    if (!_server->hasArg("plain")) {
-        sendErrorResponse(400, "Missing JSON body");
-        return;
-    }
-
-    String body = _server->arg("plain");
+void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *data, size_t len) {
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, body);
+    DeserializationError error = deserializeJson(doc, data, len);
 
     if (error) {
-        sendErrorResponse(400, "Invalid JSON");
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
         return;
     }
 
     // Update configuration
     if (doc.containsKey("bintracIP")) {
         strlcpy(_config.bintracIP, doc["bintracIP"], sizeof(_config.bintracIP));
+    }
+    if (doc.containsKey("bintracPort")) {
+        _config.bintracPort = doc["bintracPort"];
     }
     if (doc.containsKey("bintracDeviceID")) {
         _config.bintracDeviceID = doc["bintracDeviceID"];
@@ -121,37 +122,31 @@ void FeedWebServer::handleSetConfig() {
 
     // Save to filesystem
     if (_storage.saveConfig(_config)) {
-        sendJsonResponse(200, "{\"success\":true}");
+        request->send(200, "application/json", "{\"success\":true}");
     } else {
-        sendErrorResponse(500, "Failed to save configuration");
+        request->send(500, "application/json", "{\"error\":\"Failed to save configuration\"}");
     }
 }
 
-void FeedWebServer::handleGetHistory() {
+void FeedWebServer::handleGetHistory(AsyncWebServerRequest *request) {
     String json = historyToJson();
-    sendJsonResponse(200, json.c_str());
+    request->send(200, "application/json", json);
 }
 
-void FeedWebServer::handleClearHistory() {
+void FeedWebServer::handleClearHistory(AsyncWebServerRequest *request) {
     if (_storage.clearHistory()) {
-        sendJsonResponse(200, "{\"success\":true}");
+        request->send(200, "application/json", "{\"success\":true}");
     } else {
-        sendErrorResponse(500, "Failed to clear history");
+        request->send(500, "application/json", "{\"error\":\"Failed to clear history\"}");
     }
 }
 
-void FeedWebServer::handleManualControl() {
-    if (!_server->hasArg("plain")) {
-        sendErrorResponse(400, "Missing JSON body");
-        return;
-    }
-
-    String body = _server->arg("plain");
+void FeedWebServer::handleManualControl(AsyncWebServerRequest *request, uint8_t *data, size_t len) {
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, body);
+    DeserializationError error = deserializeJson(doc, data, len);
 
     if (error) {
-        sendErrorResponse(400, "Invalid JSON");
+        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
         return;
     }
 
@@ -168,46 +163,47 @@ void FeedWebServer::handleManualControl() {
     } else if (action == "stop_all") {
         _augerControl.stopAll();
     } else {
-        sendErrorResponse(400, "Unknown action");
+        request->send(400, "application/json", "{\"error\":\"Unknown action\"}");
         return;
     }
 
-    sendJsonResponse(200, "{\"success\":true}");
+    request->send(200, "application/json", "{\"success\":true}");
 }
 
-void FeedWebServer::handleStartFeed() {
+void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
     if (_augerControl.isFeeding()) {
-        sendErrorResponse(400, "Feeding already in progress");
+        request->send(400, "application/json", "{\"error\":\"Feeding already in progress\"}");
         return;
     }
+
+    // Calculate total weight from all bins
+    float totalWeight = 0;
+    for (int i = 0; i < 4; i++) {
+        totalWeight += _status.currentWeight[i];
+    }
+    _status.weightAtStart = totalWeight;
 
     _augerControl.startFeeding(_config.targetWeight, _config.chainPreRunTime, _config.maxRuntime);
-    sendJsonResponse(200, "{\"success\":true}");
+    _status.state = SystemState::FEEDING;
+    _status.feedStartTime = millis();
+
+    request->send(200, "application/json", "{\"success\":true}");
 }
 
-void FeedWebServer::handleStopFeed() {
+void FeedWebServer::handleStopFeed(AsyncWebServerRequest *request) {
     _augerControl.stopAll();
-    sendJsonResponse(200, "{\"success\":true}");
+    request->send(200, "application/json", "{\"success\":true}");
 }
 
-void FeedWebServer::handleNotFound() {
-    sendErrorResponse(404, "Not found");
-}
-
-void FeedWebServer::sendJsonResponse(int code, const char* json) {
-    _server->send(code, "application/json", json);
-}
-
-void FeedWebServer::sendErrorResponse(int code, const char* message) {
-    char json[128];
-    snprintf(json, sizeof(json), "{\"error\":\"%s\"}", message);
-    sendJsonResponse(code, json);
+void FeedWebServer::handleNotFound(AsyncWebServerRequest *request) {
+    request->send(404, "application/json", "{\"error\":\"Not found\"}");
 }
 
 String FeedWebServer::configToJson() {
     JsonDocument doc;
 
     doc["bintracIP"] = _config.bintracIP;
+    doc["bintracPort"] = _config.bintracPort;
     doc["bintracDeviceID"] = _config.bintracDeviceID;
 
     JsonArray times = doc["feedTimes"].to<JsonArray>();
