@@ -173,6 +173,15 @@ void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
         return;
     }
 
+    // Read fresh weight data before starting
+    if (_bintrac.readAllBins(_status.currentWeight)) {
+        _status.bintracConnected = true;
+        _status.lastBintracUpdate = millis();
+    } else {
+        request->send(500, "application/json", "{\"error\":\"Failed to read bin weights\"}");
+        return;
+    }
+
     // Calculate total weight from all bins
     float totalWeight = 0;
     for (int i = 0; i < 4; i++) {
