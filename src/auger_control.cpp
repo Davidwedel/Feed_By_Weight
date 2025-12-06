@@ -17,7 +17,15 @@ AugerControl::AugerControl() {
     _alarmThreshold = 10.0;
     _weightAtMinuteStart = 0;
     _minuteStartTime = 0;
+    _lastValidWeight = 0;
+    _weightReadingFailed = false;
+    _warningPending = false;
+    _warnedWeightFail = false;
+    _warnedNoChange = false;
+    _warnedIncrease = false;
+    _warnedLowRate = false;
     strcpy(_alarmReason, "");
+    strcpy(_warningMessage, "");
 }
 
 void AugerControl::begin() {
@@ -47,6 +55,11 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _startWeight = 0;  // Will be set on first update
     _weightDispensed = 0;
     _alarmTriggered = false;
+    _warningPending = false;
+    _warnedWeightFail = false;
+    _warnedNoChange = false;
+    _warnedIncrease = false;
+    _warnedLowRate = false;
     strcpy(_alarmReason, "");
 
     // Start with chain only
@@ -63,6 +76,27 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
         return _stage;
     }
 
+    // Check if weight reading failed (0 or negative usually means read error)
+    if (currentTotalWeight <= 0) {
+        if (!_warnedWeightFail) {
+            sendWarning("⚠️ Weight reading failed - continuing until max runtime");
+            _warnedWeightFail = true;
+        }
+        _weightReadingFailed = true;
+        // Use last valid weight if available
+        if (_lastValidWeight > 0) {
+            currentTotalWeight = _lastValidWeight;
+        }
+    } else {
+        // Check if problem cleared
+        if (_weightReadingFailed && _warnedWeightFail) {
+            sendWarning("✅ Weight reading restored");
+            _warnedWeightFail = false;
+        }
+        _weightReadingFailed = false;
+        _lastValidWeight = currentTotalWeight;
+    }
+
     // Initialize start weight on first update
     if (_startWeight == 0 && currentTotalWeight > 0) {
         _startWeight = currentTotalWeight;
@@ -73,14 +107,8 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Calculate weight dispensed (weight should decrease as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
 
-    // Check safety conditions
+    // Check safety conditions (sends warnings, doesn't stop)
     checkSafety(currentTotalWeight);
-
-    if (_alarmTriggered) {
-        stopAll();
-        _stage = FeedingStage::FAILED;
-        return _stage;
-    }
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
 
@@ -106,19 +134,26 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 return _stage;
             }
 
-            // Check for alarm condition (insufficient feed rate)
-            if (millis() - _minuteStartTime >= 60000) {  // Every minute
+            // Check for warning condition (insufficient feed rate) - every minute
+            if (millis() - _minuteStartTime >= 60000) {
                 float weightPerMinute = _weightAtMinuteStart - currentTotalWeight;
 
                 if (weightPerMinute < _alarmThreshold) {
-                    triggerAlarm("Insufficient feed rate");
+                    if (!_warnedLowRate) {
+                        sendWarning("⚠️ Low feed rate - bin may be empty or jammed");
+                        _warnedLowRate = true;
+                    }
+                } else if (_warnedLowRate) {
+                    // Feed rate improved
+                    sendWarning("✅ Feed rate normal");
+                    _warnedLowRate = false;
                 }
 
                 _weightAtMinuteStart = currentTotalWeight;
                 _minuteStartTime = millis();
             }
 
-            // Check maximum runtime
+            // Check maximum runtime - ONLY failure condition
             if (elapsed >= _maxRuntime) {
                 triggerAlarm("Maximum runtime exceeded");
             }
@@ -138,17 +173,31 @@ void AugerControl::stopAll() {
 }
 
 void AugerControl::checkSafety(float currentWeight) {
-    // Safety check: weight should never increase significantly during feeding
+    unsigned long elapsed = (millis() - _feedStartTime) / 1000;
+
+    // Check: weight increased (bin being filled?)
     if (currentWeight > _startWeight + 10.0) {
-        triggerAlarm("Weight increased during feeding - possible bin filling error");
+        if (!_warnedIncrease) {
+            sendWarning("⚠️ Weight increased during feeding - check if bins being filled");
+            _warnedIncrease = true;
+        }
         return;
+    } else if (_warnedIncrease) {
+        // Weight normalized
+        sendWarning("✅ Weight stabilized");
+        _warnedIncrease = false;
     }
 
-    // Check if weight is changing at all
-    unsigned long elapsed = (millis() - _feedStartTime) / 1000;
+    // Check: no weight change after 30 seconds
     if (elapsed > 30 && _weightDispensed < MIN_WEIGHT_CHANGE) {
-        triggerAlarm("No weight change detected - possible jam or empty bin");
-        return;
+        if (!_warnedNoChange) {
+            sendWarning("⚠️ No weight change detected - bin may be empty or jammed");
+            _warnedNoChange = true;
+        }
+    } else if (_warnedNoChange && _weightDispensed >= MIN_WEIGHT_CHANGE) {
+        // Weight started changing
+        sendWarning("✅ Weight dispensing resumed");
+        _warnedNoChange = false;
     }
 }
 
@@ -160,6 +209,13 @@ void AugerControl::triggerAlarm(const char* reason) {
     _alarmReason[sizeof(_alarmReason) - 1] = '\0';
 
     Serial.printf("ALARM: %s\n", reason);
+}
+
+void AugerControl::sendWarning(const char* warning) {
+    strncpy(_warningMessage, warning, sizeof(_warningMessage) - 1);
+    _warningMessage[sizeof(_warningMessage) - 1] = '\0';
+    _warningPending = true;
+    Serial.printf("WARNING: %s\n", warning);
 }
 
 unsigned long AugerControl::getDuration() const {

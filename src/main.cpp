@@ -309,6 +309,13 @@ void runStateMachine() {
 
             FeedingStage stage = augerControl.update(totalWeight);
 
+            // Check for warnings and send to Telegram
+            const char* warning = augerControl.getNewWarning();
+            if (warning != nullptr && config.telegramEnabled) {
+                String msg = String("🔔 Feed Cycle ") + String(currentFeedCycle + 1) + "\n" + String(warning);
+                telegramBot->sendMessage(msg);
+            }
+
             if (stage == FeedingStage::COMPLETED) {
                 handleFeedingComplete();
             } else if (stage == FeedingStage::FAILED) {

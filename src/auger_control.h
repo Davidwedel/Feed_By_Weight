@@ -30,6 +30,15 @@ public:
     bool isAlarmTriggered() const { return _alarmTriggered; }
     const char* getAlarmReason() const { return _alarmReason; }
 
+    // Get warning (if any) - returns new warnings only
+    const char* getNewWarning() {
+        if (_warningPending) {
+            _warningPending = false;
+            return _warningMessage;
+        }
+        return nullptr;
+    }
+
     // Manual control
     void setAuger(bool state);
     void setChain(bool state);
@@ -58,14 +67,25 @@ private:
 
     bool _alarmTriggered;
     char _alarmReason[64];
+    char _warningMessage[128];
+    bool _warningPending;
 
-    // Weight change tracking for alarm
+    // Weight change tracking for warnings
     float _weightAtMinuteStart;
     unsigned long _minuteStartTime;
+    float _lastValidWeight;
+    bool _weightReadingFailed;
 
-    // Safety
+    // Track which warnings have been sent (once per cycle)
+    bool _warnedWeightFail;
+    bool _warnedNoChange;
+    bool _warnedIncrease;
+    bool _warnedLowRate;
+
+    // Safety and warnings
     void checkSafety(float currentWeight);
     void triggerAlarm(const char* reason);
+    void sendWarning(const char* warning);
 
     // Low-level relay control
     void controlAuger(bool state);

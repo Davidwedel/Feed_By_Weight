@@ -172,10 +172,10 @@ bool TelegramBot::isEnabled() {
 }
 
 void TelegramBot::sendMessage(const String& text) {
-    if (!_bot || strlen(_config.telegramChatID) == 0) return;
+    if (!_bot || !isEnabled() || strlen(_config.telegramChatID) == 0) return;
 
-    _bot->sendMessage(_config.telegramChatID, text, "Markdown");
-    Serial.printf("Telegram: %s\n", text.c_str());
+    _bot->sendMessage(_config.telegramChatID, text, "");
+    Serial.printf("Telegram sent: %s\n", text.c_str());
 }
 
 bool TelegramBot::isUserAuthorized(const String& chat_id) {

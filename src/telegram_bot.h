@@ -37,6 +37,9 @@ public:
     // Send status update
     void sendStatus(const SystemStatus& status, const String& chat_id);
 
+    // Send a simple message (for warnings)
+    void sendMessage(const String& text);
+
     // Check if bot is enabled and configured
     bool isEnabled();
 
@@ -61,7 +64,6 @@ private:
 
     // Handle incoming commands
     void handleNewMessages(int numNewMessages);
-    void sendMessage(const String& text);
     bool isUserAuthorized(const String& chat_id);
 };
 
