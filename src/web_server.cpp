@@ -175,16 +175,24 @@ void FeedWebServer::handleManualControl(AsyncWebServerRequest *request, uint8_t 
 }
 
 void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
+    Serial.println("Start feed request received");
+
     if (_augerControl.isFeeding()) {
+        Serial.println("ERROR: Feeding already in progress");
         request->send(400, "application/json", "{\"error\":\"Feeding already in progress\"}");
         return;
     }
 
     // Read fresh weight data before starting
+    Serial.println("Reading bin weights...");
     if (_bintrac.readAllBins(_status.currentWeight)) {
         _status.bintracConnected = true;
         _status.lastBintracUpdate = millis();
+        Serial.printf("Weights read: A=%.0f B=%.0f C=%.0f D=%.0f\n",
+                     _status.currentWeight[0], _status.currentWeight[1],
+                     _status.currentWeight[2], _status.currentWeight[3]);
     } else {
+        Serial.printf("ERROR: Failed to read bin weights: %s\n", _bintrac.getLastError());
         request->send(500, "application/json", "{\"error\":\"Failed to read bin weights\"}");
         return;
     }

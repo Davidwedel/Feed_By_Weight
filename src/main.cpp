@@ -130,11 +130,13 @@ void loop() {
     // Handle web server requests
     webServer->handleClient();
 
-    // Read bin weights only when feeding or about to feed
+    // Read bin weights when feeding, or periodically in idle (every 10 seconds to keep connection alive)
     bool needWeightReading = (systemStatus.state == SystemState::FEEDING ||
                               systemStatus.state == SystemState::WAITING_FOR_SCHEDULE);
 
-    if (needWeightReading && millis() - lastBintracRead > WEIGHT_CHECK_INTERVAL) {
+    unsigned long readInterval = needWeightReading ? WEIGHT_CHECK_INTERVAL : 10000;
+
+    if (millis() - lastBintracRead > readInterval) {
         updateBinWeights();
         lastBintracRead = millis();
     }
