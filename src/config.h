@@ -6,8 +6,8 @@
 
 // Network Configuration
 // Comment out one of these to select network type
-//#define USE_ETHERNET
- #define USE_WIFI
+#define USE_ETHERNET
+// #define USE_WIFI
 
 #ifdef USE_WIFI
 // WiFi credentials
