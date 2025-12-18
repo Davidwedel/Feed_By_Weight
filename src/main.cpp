@@ -377,6 +377,9 @@ void handleFeedingComplete() {
         telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration);
     }
 
+    // Reset auger control state for next feeding
+    augerControl.stopAll();
+
     // Return to idle state
     systemStatus.state = SystemState::IDLE;
 
@@ -408,6 +411,9 @@ void handleFeedingFailed() {
         telegramBot->sendAlarm(currentFeedCycle, event.targetWeight,
                                event.actualWeight, event.alarmReason);
     }
+
+    // Reset auger control state
+    augerControl.stopAll();
 
     // Enter alarm state
     systemStatus.state = SystemState::ALARM;
