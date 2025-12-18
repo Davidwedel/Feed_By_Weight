@@ -5,15 +5,7 @@
 #define FIRMWARE_VERSION "1.0.0"
 
 // Network Configuration
-// Comment out one of these to select network type
 #define USE_ETHERNET
-// #define USE_WIFI
-
-#ifdef USE_WIFI
-// WiFi credentials
-#define WIFI_SSID "CW Wifi"
-#define WIFI_PASSWORD "Thewedels"
-#endif
 
 // Relay pins (LilyGo 8-channel board)
 #define RELAY_1_PIN 33  // Auger (swapped - physical wiring was backwards)
@@ -25,15 +17,15 @@
 #define RELAY_7_PIN 12
 #define RELAY_8_PIN 13
 
-// W5500 Ethernet SPI pins
-// Default SPI pins for ESP32:
-// MISO: GPIO19
-// MOSI: GPIO23
-// SCK:  GPIO18
-// CS:   GPIO5
+// W5500 Ethernet SPI pins (LilyGo T-Relay W5500 Shield)
+#define W5500_CS_PIN 27
+#define W5500_MISO_PIN 34
+#define W5500_MOSI_PIN 26
+#define W5500_SCK_PIN 22
+#define W5500_RESET_PIN 23
 
-#define W5500_CS_PIN 5
-#define W5500_RESET_PIN -1  // Not connected
+// MAC address for W5500
+#define W5500_MAC { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED }
 
 // Status LED (built-in)
 #define STATUS_LED_PIN 2

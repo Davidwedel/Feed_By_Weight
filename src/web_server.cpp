@@ -3,121 +3,237 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+// Concrete server class to workaround ESP32 abstract Server issue
+class ConcreteEthernetServer : public EthernetServer {
+public:
+    ConcreteEthernetServer(uint16_t port) : EthernetServer(port) {}
+    void begin(uint16_t port = 0) override {
+        EthernetServer::begin();
+    }
+};
+
+// Global server instance
+static ConcreteEthernetServer webServer(WEB_SERVER_PORT);
+
 FeedWebServer::FeedWebServer(Storage& storage, AugerControl& augerControl, BinTrac& bintrac,
                              Config& config, SystemStatus& status)
     : _storage(storage), _augerControl(augerControl), _bintrac(bintrac),
-      _config(config), _status(status) {
-    _server = new AsyncWebServer(WEB_SERVER_PORT);
+      _config(config), _status(status), _port(WEB_SERVER_PORT) {
 }
 
 void FeedWebServer::begin() {
-    // API endpoints
-    _server->on("/api/status", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetStatus(request); });
-    _server->on("/api/config", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetConfig(request); });
-    _server->on("/api/config", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
-        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            handleSetConfig(request, data, len);
-        });
-    _server->on("/api/history", HTTP_GET, [this](AsyncWebServerRequest *request) { handleGetHistory(request); });
-    _server->on("/api/history", HTTP_DELETE, [this](AsyncWebServerRequest *request) { handleClearHistory(request); });
-    _server->on("/api/manual", HTTP_POST, [this](AsyncWebServerRequest *request) {}, NULL,
-        [this](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-            handleManualControl(request, data, len);
-        });
-    _server->on("/api/feed/start", HTTP_POST, [this](AsyncWebServerRequest *request) { handleStartFeed(request); });
-    _server->on("/api/feed/stop", HTTP_POST, [this](AsyncWebServerRequest *request) { handleStopFeed(request); });
-
-    // Serve main page
-    _server->on("/", HTTP_GET, [this](AsyncWebServerRequest *request) { handleRoot(request); });
-
-    // 404 handler
-    _server->onNotFound([this](AsyncWebServerRequest *request) { handleNotFound(request); });
-
-    _server->begin();
+    webServer.begin();
     Serial.printf("Web server started on port %d\n", WEB_SERVER_PORT);
 }
 
 void FeedWebServer::handleClient() {
-    // No-op for async server
+    EthernetClient client = webServer.available();
+    if (client) {
+        if (client.connected()) {
+            handleRequest(client);
+        }
+        client.stop();
+    }
 }
 
-void FeedWebServer::handleRoot(AsyncWebServerRequest *request) {
+void FeedWebServer::handleRequest(EthernetClient& client) {
+    // Read the HTTP request
+    String currentLine = "";
+    String requestLine = "";
+    String method = "";
+    String path = "";
+    String body = "";
+    int contentLength = 0;
+    bool headersDone = false;
+
+    // Read request with timeout
+    unsigned long startTime = millis();
+    while (client.connected() && (millis() - startTime < 5000)) {
+        if (client.available()) {
+            char c = client.read();
+
+            if (c == '\n') {
+                if (currentLine.length() == 0) {
+                    headersDone = true;
+                    break;  // End of headers
+                } else {
+                    // Process header line
+                    if (requestLine == "") {
+                        requestLine = currentLine;
+                        // Parse method and path
+                        int firstSpace = requestLine.indexOf(' ');
+                        int secondSpace = requestLine.indexOf(' ', firstSpace + 1);
+                        if (firstSpace > 0 && secondSpace > 0) {
+                            method = requestLine.substring(0, firstSpace);
+                            path = requestLine.substring(firstSpace + 1, secondSpace);
+                        }
+                    } else if (currentLine.startsWith("Content-Length: ")) {
+                        contentLength = currentLine.substring(16).toInt();
+                    }
+                    currentLine = "";
+                }
+            } else if (c != '\r') {
+                currentLine += c;
+            }
+        }
+    }
+
+    // Read body if present
+    if (headersDone && contentLength > 0) {
+        body.reserve(contentLength);
+        startTime = millis();
+        while (body.length() < contentLength && (millis() - startTime < 5000)) {
+            if (client.available()) {
+                body += (char)client.read();
+            }
+        }
+    }
+
+    // Route the request
+    if (method == "GET") {
+        if (path == "/" || path == "/index.html") {
+            handleRoot(client);
+        } else if (path == "/api/status") {
+            handleGetStatus(client);
+        } else if (path == "/api/config") {
+            handleGetConfig(client);
+        } else if (path == "/api/history") {
+            handleGetHistory(client);
+        } else {
+            sendNotFound(client);
+        }
+    } else if (method == "POST") {
+        if (path == "/api/config") {
+            handleSetConfig(client, body);
+        } else if (path == "/api/manual") {
+            handleManualControl(client, body);
+        } else if (path == "/api/feed/start") {
+            handleStartFeed(client);
+        } else if (path == "/api/feed/stop") {
+            handleStopFeed(client);
+        } else {
+            sendNotFound(client);
+        }
+    } else if (method == "DELETE") {
+        if (path == "/api/history") {
+            handleClearHistory(client);
+        } else {
+            sendNotFound(client);
+        }
+    } else {
+        sendNotFound(client);
+    }
+}
+
+void FeedWebServer::sendResponse(EthernetClient& client, int code, const char* contentType, const String& body) {
+    client.print("HTTP/1.1 ");
+    client.print(code);
+    client.println(code == 200 ? " OK" : code == 400 ? " Bad Request" : code == 404 ? " Not Found" : " Error");
+    client.print("Content-Type: ");
+    client.println(contentType);
+    client.println("Connection: close");
+    client.print("Content-Length: ");
+    client.println(body.length());
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+    client.print(body);
+}
+
+void FeedWebServer::sendJsonResponse(EthernetClient& client, const String& json) {
+    sendResponse(client, 200, "application/json", json);
+}
+
+void FeedWebServer::sendNotFound(EthernetClient& client) {
+    sendResponse(client, 404, "application/json", "{\"error\":\"Not found\"}");
+}
+
+void FeedWebServer::handleRoot(EthernetClient& client) {
     // Serve index.html from LittleFS
     if (!LittleFS.exists("/index.html")) {
-        request->send(200, "text/html",
-            "<html><body><h1>Weight Feeder Control</h1>"
-            "<p>Web interface not installed. Use API endpoints:</p>"
-            "<ul><li>/api/status</li><li>/api/config</li><li>/api/history</li></ul>"
-            "</body></html>");
+        String html = "<html><body><h1>Weight Feeder Control</h1>"
+                     "<p>Web interface not installed. Use API endpoints:</p>"
+                     "<ul><li>/api/status</li><li>/api/config</li><li>/api/history</li></ul>"
+                     "</body></html>";
+        sendResponse(client, 200, "text/html", html);
         return;
     }
 
-    request->send(LittleFS, "/index.html", "text/html");
+    // Read file from LittleFS
+    File file = LittleFS.open("/index.html", "r");
+    if (!file) {
+        sendNotFound(client);
+        return;
+    }
+
+    String html = file.readString();
+    file.close();
+    sendResponse(client, 200, "text/html", html);
 }
 
-void FeedWebServer::handleGetStatus(AsyncWebServerRequest *request) {
+void FeedWebServer::handleGetStatus(EthernetClient& client) {
     String json = statusToJson();
-    request->send(200, "application/json", json);
+    sendJsonResponse(client, json);
 }
 
-void FeedWebServer::handleGetConfig(AsyncWebServerRequest *request) {
+void FeedWebServer::handleGetConfig(EthernetClient& client) {
     String json = configToJson();
-    request->send(200, "application/json", json);
+    sendJsonResponse(client, json);
 }
 
-void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *data, size_t len) {
+void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) {
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, data, len);
+    DeserializationError error = deserializeJson(doc, body);
 
     if (error) {
-        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        sendResponse(client, 400, "application/json", "{\"error\":\"Invalid JSON\"}");
         return;
     }
 
     // Update configuration
-    if (doc.containsKey("bintracIP")) {
+    if (doc["bintracIP"].is<const char*>()) {
         strlcpy(_config.bintracIP, doc["bintracIP"], sizeof(_config.bintracIP));
     }
-    if (doc.containsKey("bintracDeviceID")) {
+    if (doc["bintracDeviceID"].is<int>()) {
         _config.bintracDeviceID = doc["bintracDeviceID"];
     }
-    if (doc.containsKey("feedTimes")) {
-        for (int i = 0; i < 4; i++) {
-            _config.feedTimes[i] = doc["feedTimes"][i];
+    if (doc["feedTimes"].is<JsonArray>()) {
+        JsonArray times = doc["feedTimes"];
+        for (int i = 0; i < 4 && i < times.size(); i++) {
+            _config.feedTimes[i] = times[i];
         }
     }
-    if (doc.containsKey("targetWeight")) {
+    if (doc["targetWeight"].is<float>()) {
         _config.targetWeight = doc["targetWeight"];
     }
-    if (doc.containsKey("weightUnit")) {
+    if (doc["weightUnit"].is<int>()) {
         _config.weightUnit = (WeightUnit)(int)doc["weightUnit"];
     }
-    if (doc.containsKey("chainPreRunTime")) {
+    if (doc["chainPreRunTime"].is<int>()) {
         _config.chainPreRunTime = doc["chainPreRunTime"];
     }
-    if (doc.containsKey("alarmThreshold")) {
+    if (doc["alarmThreshold"].is<float>()) {
         _config.alarmThreshold = doc["alarmThreshold"];
     }
-    if (doc.containsKey("maxRuntime")) {
+    if (doc["maxRuntime"].is<int>()) {
         _config.maxRuntime = doc["maxRuntime"];
     }
-    if (doc.containsKey("telegramToken")) {
+    if (doc["telegramToken"].is<const char*>()) {
         strlcpy(_config.telegramToken, doc["telegramToken"], sizeof(_config.telegramToken));
     }
-    if (doc.containsKey("telegramChatID")) {
+    if (doc["telegramChatID"].is<const char*>()) {
         strlcpy(_config.telegramChatID, doc["telegramChatID"], sizeof(_config.telegramChatID));
     }
-    if (doc.containsKey("telegramAllowedUsers")) {
+    if (doc["telegramAllowedUsers"].is<const char*>()) {
         strlcpy(_config.telegramAllowedUsers, doc["telegramAllowedUsers"], sizeof(_config.telegramAllowedUsers));
     }
-    if (doc.containsKey("telegramEnabled")) {
+    if (doc["telegramEnabled"].is<bool>()) {
         _config.telegramEnabled = doc["telegramEnabled"];
         Serial.printf("Set telegramEnabled = %d\n", _config.telegramEnabled);
     }
-    if (doc.containsKey("autoFeedEnabled")) {
+    if (doc["autoFeedEnabled"].is<bool>()) {
         _config.autoFeedEnabled = doc["autoFeedEnabled"];
     }
-    if (doc.containsKey("timezone")) {
+    if (doc["timezone"].is<int>()) {
         _config.timezone = doc["timezone"];
     }
 
@@ -125,36 +241,36 @@ void FeedWebServer::handleSetConfig(AsyncWebServerRequest *request, uint8_t *dat
     Serial.println("Saving configuration to filesystem...");
     if (_storage.saveConfig(_config)) {
         Serial.println("Configuration saved successfully");
-        request->send(200, "application/json", "{\"success\":true}");
+        sendJsonResponse(client, "{\"success\":true}");
     } else {
         Serial.println("ERROR: Failed to save configuration");
-        request->send(500, "application/json", "{\"error\":\"Failed to save configuration\"}");
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to save configuration\"}");
     }
 }
 
-void FeedWebServer::handleGetHistory(AsyncWebServerRequest *request) {
+void FeedWebServer::handleGetHistory(EthernetClient& client) {
     String json = historyToJson();
-    request->send(200, "application/json", json);
+    sendJsonResponse(client, json);
 }
 
-void FeedWebServer::handleClearHistory(AsyncWebServerRequest *request) {
+void FeedWebServer::handleClearHistory(EthernetClient& client) {
     if (_storage.clearHistory()) {
-        request->send(200, "application/json", "{\"success\":true}");
+        sendJsonResponse(client, "{\"success\":true}");
     } else {
-        request->send(500, "application/json", "{\"error\":\"Failed to clear history\"}");
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to clear history\"}");
     }
 }
 
-void FeedWebServer::handleManualControl(AsyncWebServerRequest *request, uint8_t *data, size_t len) {
+void FeedWebServer::handleManualControl(EthernetClient& client, const String& body) {
     JsonDocument doc;
-    DeserializationError error = deserializeJson(doc, data, len);
+    DeserializationError error = deserializeJson(doc, body);
 
     if (error) {
-        request->send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        sendResponse(client, 400, "application/json", "{\"error\":\"Invalid JSON\"}");
         return;
     }
 
-    String action = doc["action"];
+    String action = doc["action"].as<String>();
 
     if (action == "auger_on") {
         _augerControl.setAuger(true);
@@ -167,19 +283,19 @@ void FeedWebServer::handleManualControl(AsyncWebServerRequest *request, uint8_t 
     } else if (action == "stop_all") {
         _augerControl.stopAll();
     } else {
-        request->send(400, "application/json", "{\"error\":\"Unknown action\"}");
+        sendResponse(client, 400, "application/json", "{\"error\":\"Unknown action\"}");
         return;
     }
 
-    request->send(200, "application/json", "{\"success\":true}");
+    sendJsonResponse(client, "{\"success\":true}");
 }
 
-void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
+void FeedWebServer::handleStartFeed(EthernetClient& client) {
     Serial.println("Start feed request received");
 
     if (_augerControl.isFeeding()) {
         Serial.println("ERROR: Feeding already in progress");
-        request->send(400, "application/json", "{\"error\":\"Feeding already in progress\"}");
+        sendResponse(client, 400, "application/json", "{\"error\":\"Feeding already in progress\"}");
         return;
     }
 
@@ -193,7 +309,7 @@ void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
                      _status.currentWeight[2], _status.currentWeight[3]);
     } else {
         Serial.printf("ERROR: Failed to read bin weights: %s\n", _bintrac.getLastError());
-        request->send(500, "application/json", "{\"error\":\"Failed to read bin weights\"}");
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to read bin weights\"}");
         return;
     }
 
@@ -208,16 +324,12 @@ void FeedWebServer::handleStartFeed(AsyncWebServerRequest *request) {
     _status.state = SystemState::FEEDING;
     _status.feedStartTime = millis();
 
-    request->send(200, "application/json", "{\"success\":true}");
+    sendJsonResponse(client, "{\"success\":true}");
 }
 
-void FeedWebServer::handleStopFeed(AsyncWebServerRequest *request) {
+void FeedWebServer::handleStopFeed(EthernetClient& client) {
     _augerControl.stopAll();
-    request->send(200, "application/json", "{\"success\":true}");
-}
-
-void FeedWebServer::handleNotFound(AsyncWebServerRequest *request) {
-    request->send(404, "application/json", "{\"error\":\"Not found\"}");
+    sendJsonResponse(client, "{\"success\":true}");
 }
 
 String FeedWebServer::configToJson() {

@@ -1,11 +1,6 @@
 #include <Arduino.h>
 #include <SPI.h>
-#ifdef USE_ETHERNET
 #include <Ethernet.h>
-#endif
-#ifdef USE_WIFI
-#include <WiFi.h>
-#endif
 #include "config.h"
 #include "types.h"
 #include "storage.h"
@@ -158,78 +153,91 @@ void loop() {
 }
 
 void setupNetwork() {
-#ifdef USE_ETHERNET
     Serial.println("Initializing W5500 Ethernet...");
+    Serial.println("Pin configuration:");
+    Serial.printf("  CS:   GPIO %d\n", W5500_CS_PIN);
+    Serial.printf("  MISO: GPIO %d\n", W5500_MISO_PIN);
+    Serial.printf("  MOSI: GPIO %d\n", W5500_MOSI_PIN);
+    Serial.printf("  SCK:  GPIO %d\n", W5500_SCK_PIN);
+    Serial.printf("  RST:  GPIO %d\n", W5500_RESET_PIN);
 
-    // Initialize SPI
-    SPI.begin();
+    // Hardware reset W5500
+    pinMode(W5500_RESET_PIN, OUTPUT);
+    digitalWrite(W5500_RESET_PIN, LOW);
+    delay(50);
+    digitalWrite(W5500_RESET_PIN, HIGH);
+    delay(200);
 
-    // Configure W5500 chip select pin
-    pinMode(W5500_CS_PIN, OUTPUT);
-    digitalWrite(W5500_CS_PIN, HIGH);
+    // Initialize SPI with custom pins
+    SPI.begin(W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN);
 
-    // Use DHCP (no MAC address = use default)
-    if (Ethernet.begin(NULL, 5000, 1000) == 0) {
-        Serial.println("Failed to configure Ethernet using DHCP");
+    // Initialize Ethernet library with CS pin
+    Ethernet.init(W5500_CS_PIN);
 
-        // Try with a static IP as fallback
-        IPAddress ip(192, 168, 1, 177);
+    // MAC address
+    byte mac[] = W5500_MAC;
+
+    // First, get DHCP to learn network configuration
+    Serial.println("Getting network info via DHCP...");
+    Ethernet.begin(mac);
+    delay(5000);  // Wait for DHCP to complete
+
+    IPAddress dhcpIP = Ethernet.localIP();
+
+    // Check if we got a valid private network IP from DHCP
+    if (!((dhcpIP[0] == 192 && dhcpIP[1] == 168) ||
+          (dhcpIP[0] == 10) ||
+          (dhcpIP[0] == 172 && dhcpIP[1] >= 16 && dhcpIP[1] <= 31))) {
+        Serial.println("DHCP failed, using fallback static IP");
+
+        // Fallback to basic static IP
+        IPAddress ip(192, 168, 1, 205);
         IPAddress dns(192, 168, 1, 1);
         IPAddress gateway(192, 168, 1, 1);
         IPAddress subnet(255, 255, 255, 0);
 
-        Ethernet.begin(NULL, ip, dns, gateway, subnet);
-        Serial.println("Using static IP configuration");
+        Ethernet.begin(mac, ip, dns, gateway, subnet);
+        delay(1000);
+
+        networkConnected = true;
+
+        Serial.print("Fallback IP Address: ");
+        Serial.println(Ethernet.localIP());
+        return;
     }
 
     // Give W5500 time to initialize
     delay(1000);
 
-    // Check link status
-    if (Ethernet.linkStatus() == LinkON) {
-        Serial.println("Ethernet connected");
-        Serial.print("IP Address: ");
-        Serial.println(Ethernet.localIP());
-        networkConnected = true;
-    } else {
-        Serial.println("Ethernet cable not connected");
-        Serial.print("IP Address: ");
-        Serial.println(Ethernet.localIP());
-        networkConnected = false;
-    }
-#endif
+    // Read network configuration from DHCP
+    IPAddress gateway = Ethernet.gatewayIP();
+    IPAddress subnet = Ethernet.subnetMask();
+    IPAddress dns = Ethernet.dnsServerIP();
 
-#ifdef USE_WIFI
-    Serial.println("Initializing WiFi...");
-    Serial.printf("Connecting to %s...\n", WIFI_SSID);
+    Serial.println("DHCP configuration obtained:");
+    Serial.print("  IP: ");
+    Serial.println(dhcpIP);
+    Serial.print("  Gateway: ");
+    Serial.println(gateway);
+    Serial.print("  Subnet: ");
+    Serial.println(subnet);
+    Serial.print("  DNS: ");
+    Serial.println(dns);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    // Now reconnect with static IP ending in .205, using learned network config
+    IPAddress staticIP(dhcpIP[0], dhcpIP[1], dhcpIP[2], 205);
 
-    // Wait for connection (timeout after 30 seconds)
-    int attempts = 0;
-    while (WiFi.status() != WL_CONNECTED && attempts < 60) {
-        delay(500);
-        Serial.print(".");
-        attempts++;
-    }
+    Serial.print("Reconnecting with static IP: ");
+    Serial.println(staticIP);
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\nWiFi connected");
-        Serial.print("IP Address: ");
-        Serial.println(WiFi.localIP());
-        Serial.print("Gateway: ");
-        Serial.println(WiFi.gatewayIP());
-        Serial.print("Subnet: ");
-        Serial.println(WiFi.subnetMask());
-        Serial.print("DNS: ");
-        Serial.println(WiFi.dnsIP());
-        networkConnected = true;
-    } else {
-        Serial.println("\nWiFi connection failed");
-        networkConnected = false;
-    }
-#endif
+    Ethernet.begin(mac, staticIP, dns, gateway, subnet);
+    delay(1000);
+
+    // Verify connection
+    Serial.println("Ethernet connected with static IP");
+    Serial.print("Final IP Address: ");
+    Serial.println(Ethernet.localIP());
+    networkConnected = true;
 }
 
 void updateBinWeights() {
@@ -265,13 +273,9 @@ void updateSystemStatus() {
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
     systemStatus.flowRate = augerControl.getFlowRate();
 
-    // Update network connection status
-#ifdef USE_ETHERNET
-    networkConnected = (Ethernet.linkStatus() == LinkON);
-#endif
-#ifdef USE_WIFI
-    networkConnected = (WiFi.status() == WL_CONNECTED);
-#endif
+    // Update network connection status (check if we have a valid IP)
+    IPAddress ip = Ethernet.localIP();
+    networkConnected = (ip[0] != 0);
     systemStatus.networkConnected = networkConnected;
 }
 

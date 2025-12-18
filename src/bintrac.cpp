@@ -1,15 +1,7 @@
 #include "bintrac.h"
 #include "config.h"
 
-#ifdef USE_WIFI
-#include <WiFi.h>
-#include <WiFiClient.h>
-#endif
-
-#ifdef USE_ETHERNET
 #include <Ethernet.h>
-#include <EthernetClient.h>
-#endif
 
 BinTrac::BinTrac() {
     _connected = false;

@@ -2,13 +2,7 @@
 #define WEB_SERVER_H
 
 #include <Arduino.h>
-#ifdef USE_WIFI
-#include <WiFi.h>
-#endif
-#ifdef USE_ETHERNET
 #include <Ethernet.h>
-#endif
-#include <ESPAsyncWebServer.h>
 #include "types.h"
 #include "storage.h"
 #include "auger_control.h"
@@ -23,27 +17,32 @@ public:
     void begin();
 
     // Handle client requests (call in main loop)
-    void handleClient();  // No-op for async server, kept for compatibility
+    void handleClient();
 
 private:
-    AsyncWebServer* _server;
+    uint16_t _port;
     Storage& _storage;
     AugerControl& _augerControl;
     BinTrac& _bintrac;
     Config& _config;
     SystemStatus& _status;
 
+    // HTTP request handling
+    void handleRequest(EthernetClient& client);
+    void sendResponse(EthernetClient& client, int code, const char* contentType, const String& body);
+    void sendJsonResponse(EthernetClient& client, const String& json);
+    void sendNotFound(EthernetClient& client);
+
     // HTTP handlers
-    void handleRoot(AsyncWebServerRequest *request);
-    void handleGetStatus(AsyncWebServerRequest *request);
-    void handleGetConfig(AsyncWebServerRequest *request);
-    void handleSetConfig(AsyncWebServerRequest *request, uint8_t *data, size_t len);
-    void handleGetHistory(AsyncWebServerRequest *request);
-    void handleClearHistory(AsyncWebServerRequest *request);
-    void handleManualControl(AsyncWebServerRequest *request, uint8_t *data, size_t len);
-    void handleStartFeed(AsyncWebServerRequest *request);
-    void handleStopFeed(AsyncWebServerRequest *request);
-    void handleNotFound(AsyncWebServerRequest *request);
+    void handleRoot(EthernetClient& client);
+    void handleGetStatus(EthernetClient& client);
+    void handleGetConfig(EthernetClient& client);
+    void handleSetConfig(EthernetClient& client, const String& body);
+    void handleGetHistory(EthernetClient& client);
+    void handleClearHistory(EthernetClient& client);
+    void handleManualControl(EthernetClient& client, const String& body);
+    void handleStartFeed(EthernetClient& client);
+    void handleStopFeed(EthernetClient& client);
 
     // Utility functions
     String configToJson();
