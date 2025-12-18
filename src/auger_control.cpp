@@ -10,6 +10,7 @@ AugerControl::AugerControl() {
     _weightDispensed = 0;
     _feedStartTime = 0;
     _chainStartTime = 0;
+    _bothRunningStartTime = 0;
     _lastWeightCheck = 0;
     _alarmTriggered = false;
     _chainPreRunTime = 10;
@@ -107,9 +108,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Calculate weight dispensed (weight should decrease as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
 
-    // Check safety conditions (sends warnings, doesn't stop)
-    checkSafety(currentTotalWeight);
-
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
 
     switch (_stage) {
@@ -120,11 +118,19 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 Serial.printf("Chain pre-run complete (%ds), starting auger...\n", _chainPreRunTime);
                 controlAuger(true);
                 _stage = FeedingStage::BOTH_RUNNING;
+
+                // Reset timing for safety monitoring to start fresh
+                _bothRunningStartTime = millis();
+                _minuteStartTime = millis();
+                _weightAtMinuteStart = currentTotalWeight;
+
                 Serial.println("Stage: BOTH_RUNNING");
             }
             break;
 
         case FeedingStage::BOTH_RUNNING:
+            // Check safety conditions (sends warnings, doesn't stop)
+            checkSafety(currentTotalWeight);
             // Check if target weight reached
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
@@ -173,7 +179,8 @@ void AugerControl::stopAll() {
 }
 
 void AugerControl::checkSafety(float currentWeight) {
-    unsigned long elapsed = (millis() - _feedStartTime) / 1000;
+    // Calculate elapsed time from when BOTH_RUNNING started (not from chain pre-run)
+    unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
 
     // Check: weight increased (bin being filled?)
     if (currentWeight > _startWeight + 10.0) {

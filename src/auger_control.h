@@ -64,6 +64,7 @@ private:
 
     unsigned long _feedStartTime;
     unsigned long _chainStartTime;
+    unsigned long _bothRunningStartTime;
     unsigned long _lastWeightCheck;
 
     bool _alarmTriggered;
