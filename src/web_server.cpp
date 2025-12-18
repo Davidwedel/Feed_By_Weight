@@ -158,16 +158,36 @@ void FeedWebServer::handleRoot(EthernetClient& client) {
         return;
     }
 
-    // Read file from LittleFS
+    // Open file from LittleFS
     File file = LittleFS.open("/index.html", "r");
     if (!file) {
         sendNotFound(client);
         return;
     }
 
-    String html = file.readString();
+    // Get file size
+    size_t fileSize = file.size();
+
+    // Send HTTP headers
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println("Connection: close");
+    client.print("Content-Length: ");
+    client.println(fileSize);
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    // Send file in chunks
+    const size_t chunkSize = 512;
+    uint8_t buffer[chunkSize];
+    while (file.available()) {
+        size_t bytesRead = file.read(buffer, chunkSize);
+        client.write(buffer, bytesRead);
+        client.flush();  // Ensure data is sent
+        delay(1);  // Small delay to prevent buffer overflow
+    }
+
     file.close();
-    sendResponse(client, 200, "text/html", html);
 }
 
 void FeedWebServer::handleGetStatus(EthernetClient& client) {
