@@ -15,7 +15,9 @@ AugerControl::AugerControl() {
     _alarmTriggered = false;
     _chainPreRunTime = 10;
     _maxRuntime = 600;
+    _fillSettlingTime = 60;
     _alarmThreshold = 10.0;
+    _fillDetectionThreshold = 20.0;
     _weightAtMinuteStart = 0;
     _minuteStartTime = 0;
     _lastValidWeight = 0;
@@ -25,6 +27,12 @@ AugerControl::AugerControl() {
     _warnedNoChange = false;
     _warnedIncrease = false;
     _warnedLowRate = false;
+    _stageBeforePause = FeedingStage::STOPPED;
+    _weight10SecondsAgo = 0;
+    _weight10sTrackingTime = 0;
+    _weightWhenPaused = 0;
+    _fillStabilizedTime = 0;
+    _fillInProgress = false;
     strcpy(_alarmReason, "");
     strcpy(_warningMessage, "");
 }
@@ -40,7 +48,7 @@ void AugerControl::begin() {
     Serial.println("Auger and chain control initialized");
 }
 
-void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime) {
+void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionThreshold, uint16_t fillSettlingTime) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
@@ -49,6 +57,8 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _targetWeight = targetWeight;
     _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
+    _fillDetectionThreshold = fillDetectionThreshold;
+    _fillSettlingTime = fillSettlingTime;
     _feedStartTime = millis();
     _chainStartTime = millis();
     _lastWeightCheck = millis();
@@ -61,6 +71,10 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _warnedNoChange = false;
     _warnedIncrease = false;
     _warnedLowRate = false;
+    _weight10SecondsAgo = 0;
+    _weight10sTrackingTime = millis();
+    _fillInProgress = false;
+    _fillStabilizedTime = 0;
     strcpy(_alarmReason, "");
 
     // Start with chain only
@@ -107,6 +121,32 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
     // Calculate weight dispensed (weight should decrease as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
+
+    // Update 10-second weight baseline for fill detection
+    if (millis() - _weight10sTrackingTime >= 10000) {
+        _weight10SecondsAgo = currentTotalWeight;
+        _weight10sTrackingTime = millis();
+    }
+    // Initialize on first run
+    if (_weight10SecondsAgo == 0 && currentTotalWeight > 0) {
+        _weight10SecondsAgo = currentTotalWeight;
+    }
+
+    // Check for bin filling BEFORE stage-specific logic (only if not already paused)
+    if (_stage != FeedingStage::PAUSED_FOR_FILL &&
+        _weight10SecondsAgo > 0 &&
+        currentTotalWeight > _weight10SecondsAgo + _fillDetectionThreshold) {
+        // Pause feeding immediately
+        _stageBeforePause = _stage;
+        controlAuger(false);
+        controlChain(false);
+        _stage = FeedingStage::PAUSED_FOR_FILL;
+        _fillInProgress = true;
+        _weightWhenPaused = currentTotalWeight;
+        _fillStabilizedTime = 0;
+        Serial.println("Feed PAUSED - bin filling detected (weight increase over 10 seconds)");
+        return _stage;
+    }
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
 
@@ -165,6 +205,57 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             }
             break;
 
+        case FeedingStage::PAUSED_FOR_FILL:
+            // Monitor weight to detect when filling stops
+            if (currentTotalWeight > _weightWhenPaused + 1.0) {
+                // Weight still increasing - reset stabilization timer
+                _weightWhenPaused = currentTotalWeight;
+                _fillStabilizedTime = 0;
+            } else {
+                // Weight stable or decreasing
+                if (_fillStabilizedTime == 0) {
+                    // Start settling countdown
+                    _fillStabilizedTime = millis();
+                }
+
+                // Check if settling time has elapsed
+                unsigned long settleElapsed = (millis() - _fillStabilizedTime) / 1000;
+                if (settleElapsed >= _fillSettlingTime) {
+                    // Resume feeding
+                    _fillInProgress = false;
+
+                    // Adjust baseline weight to account for added feed
+                    float weightGain = currentTotalWeight - _startWeight;
+                    _startWeight = currentTotalWeight;
+
+                    // Reset 10-second baseline to prevent immediate re-trigger
+                    _weight10SecondsAgo = currentTotalWeight;
+                    _weight10sTrackingTime = millis();
+
+                    Serial.printf("Feed RESUMED after bin fill (+%.2f lbs, settled for %ds)\n",
+                                 weightGain, _fillSettlingTime);
+
+                    // Resume to previous stage
+                    _stage = _stageBeforePause;
+
+                    // Restart appropriate motors
+                    if (_stage == FeedingStage::CHAIN_ONLY) {
+                        controlChain(true);
+                    } else if (_stage == FeedingStage::BOTH_RUNNING) {
+                        controlChain(true);
+                        controlAuger(true);
+                        // Reset monitoring timers for resumed feeding
+                        _bothRunningStartTime = millis();
+                        _minuteStartTime = millis();
+                        _weightAtMinuteStart = currentTotalWeight;
+                    }
+
+                    // Return immediately to prevent re-executing resume logic
+                    return _stage;
+                }
+            }
+            break;
+
         default:
             break;
     }
@@ -181,19 +272,6 @@ void AugerControl::stopAll() {
 void AugerControl::checkSafety(float currentWeight) {
     // Calculate elapsed time from when BOTH_RUNNING started (not from chain pre-run)
     unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
-
-    // Check: weight increased (bin being filled?)
-    if (currentWeight > _startWeight + 10.0) {
-        if (!_warnedIncrease) {
-            sendWarning("⚠️ Weight increased during feeding - check if bins being filled");
-            _warnedIncrease = true;
-        }
-        return;
-    } else if (_warnedIncrease) {
-        // Weight normalized
-        sendWarning("✅ Weight stabilized");
-        _warnedIncrease = false;
-    }
 
     // Check: no weight change after 30 seconds
     if (elapsed > 30 && _weightDispensed < MIN_WEIGHT_CHANGE) {

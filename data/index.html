@@ -261,6 +261,22 @@
                     <input type="number" id="maxRuntime" min="0" placeholder="10">
                 </div>
 
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">Bin Filling Detection</h3>
+
+                <div class="form-group">
+                    <label>Fill Detection Threshold (lbs in 10 seconds)</label>
+                    <input type="number" id="fillDetectionThreshold" step="0.1" min="0" placeholder="20.0">
+                    <small style="color: #666; font-size: 0.9em;">Pause feeding if weight increases by this amount in 10 seconds</small>
+                </div>
+
+                <div class="form-group">
+                    <label>Settling Time After Fill (seconds)</label>
+                    <input type="number" id="fillSettlingTime" min="0" placeholder="60">
+                    <small style="color: #666; font-size: 0.9em;">Wait this long after bin filling stops before resuming</small>
+                </div>
+
+                <h3 style="margin-top: 30px; margin-bottom: 15px;">System Settings</h3>
+
                 <div class="form-group">
                     <label>Timezone Offset (UTC hours)</label>
                     <input type="number" id="timezone" min="-12" max="12">
@@ -335,7 +351,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
-                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'COMPLETED', 'FAILED'];
+                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
                     document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
@@ -367,6 +383,8 @@
                     document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
                     document.getElementById('alarmThreshold').value = data.alarmThreshold;
                     document.getElementById('maxRuntime').value = Math.round(data.maxRuntime / 60);
+                    document.getElementById('fillDetectionThreshold').value = data.fillDetectionThreshold;
+                    document.getElementById('fillSettlingTime').value = data.fillSettlingTime;
                     document.getElementById('timezone').value = data.timezone;
                     document.getElementById('telegramEnabled').checked = data.telegramEnabled;
                     document.getElementById('telegramToken').value = data.telegramToken;
@@ -402,6 +420,8 @@
                 chainPreRunTime: parseInt(document.getElementById('chainPreRunTime').value),
                 alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
                 maxRuntime: parseInt(document.getElementById('maxRuntime').value) * 60,
+                fillDetectionThreshold: parseFloat(document.getElementById('fillDetectionThreshold').value),
+                fillSettlingTime: parseInt(document.getElementById('fillSettlingTime').value),
                 timezone: parseInt(document.getElementById('timezone').value),
                 telegramEnabled: document.getElementById('telegramEnabled').checked,
                 telegramToken: document.getElementById('telegramToken').value,

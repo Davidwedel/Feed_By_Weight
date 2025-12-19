@@ -24,6 +24,7 @@ enum class FeedingStage {
     STOPPED,
     CHAIN_ONLY,
     BOTH_RUNNING,
+    PAUSED_FOR_FILL,
     COMPLETED,
     FAILED
 };
@@ -45,6 +46,10 @@ struct Config {
     // Alarm settings
     float alarmThreshold = 10.0;  // weight per minute
     uint16_t maxRuntime = 600;    // maximum feeding time in seconds
+
+    // Bin filling detection
+    float fillDetectionThreshold = 20.0;  // lbs increase in 10 seconds to trigger pause
+    uint16_t fillSettlingTime = 60;       // seconds to wait after filling stops
 
     // Telegram settings
     char telegramToken[50] = "";

@@ -237,6 +237,12 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
     if (doc["maxRuntime"].is<int>()) {
         _config.maxRuntime = doc["maxRuntime"];
     }
+    if (doc["fillDetectionThreshold"].is<float>()) {
+        _config.fillDetectionThreshold = doc["fillDetectionThreshold"];
+    }
+    if (doc["fillSettlingTime"].is<int>()) {
+        _config.fillSettlingTime = doc["fillSettlingTime"];
+    }
     if (doc["telegramToken"].is<const char*>()) {
         strlcpy(_config.telegramToken, doc["telegramToken"], sizeof(_config.telegramToken));
     }
@@ -340,7 +346,7 @@ void FeedWebServer::handleStartFeed(EthernetClient& client) {
     }
     _status.weightAtStart = totalWeight;
 
-    _augerControl.startFeeding(_config.targetWeight, _config.chainPreRunTime, _config.maxRuntime);
+    _augerControl.startFeeding(_config.targetWeight, _config.chainPreRunTime, _config.maxRuntime, _config.fillDetectionThreshold, _config.fillSettlingTime);
     _status.state = SystemState::FEEDING;
     _status.feedStartTime = millis();
 
@@ -368,6 +374,8 @@ String FeedWebServer::configToJson() {
     doc["chainPreRunTime"] = _config.chainPreRunTime;
     doc["alarmThreshold"] = _config.alarmThreshold;
     doc["maxRuntime"] = _config.maxRuntime;
+    doc["fillDetectionThreshold"] = _config.fillDetectionThreshold;
+    doc["fillSettlingTime"] = _config.fillSettlingTime;
     doc["telegramToken"] = _config.telegramToken;
     doc["telegramChatID"] = _config.telegramChatID;
     doc["telegramAllowedUsers"] = _config.telegramAllowedUsers;

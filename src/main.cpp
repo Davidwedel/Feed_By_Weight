@@ -296,7 +296,7 @@ void runStateMachine() {
                     systemStatus.weightAtStart = totalWeight;
 
                     // Start feeding
-                    augerControl.startFeeding(config.targetWeight, config.chainPreRunTime, config.maxRuntime);
+                    augerControl.startFeeding(config.targetWeight, config.chainPreRunTime, config.maxRuntime, config.fillDetectionThreshold, config.fillSettlingTime);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 
