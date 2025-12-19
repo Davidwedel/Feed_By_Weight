@@ -45,6 +45,10 @@ bool Storage::loadConfig(Config& config) {
     config.alarmThreshold = prefs.getFloat("alarmThresh", 10.0);
     config.maxRuntime = prefs.getUShort("maxRuntime", 600);
 
+    // Bin filling detection
+    config.fillDetectionThreshold = prefs.getFloat("fillThresh", 20.0);
+    config.fillSettlingTime = prefs.getUShort("fillSettle", 60);
+
     // Telegram
     strlcpy(config.telegramToken, prefs.getString("tgToken", "").c_str(), sizeof(config.telegramToken));
     strlcpy(config.telegramChatID, prefs.getString("tgChatID", "").c_str(), sizeof(config.telegramChatID));
@@ -82,6 +86,10 @@ bool Storage::saveConfig(const Config& config) {
     // Alarm settings
     prefs.putFloat("alarmThresh", config.alarmThreshold);
     prefs.putUShort("maxRuntime", config.maxRuntime);
+
+    // Bin filling detection
+    prefs.putFloat("fillThresh", config.fillDetectionThreshold);
+    prefs.putUShort("fillSettle", config.fillSettlingTime);
 
     // Telegram
     prefs.putString("tgToken", config.telegramToken);
