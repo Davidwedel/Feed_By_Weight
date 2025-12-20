@@ -245,9 +245,9 @@ void updateBinWeights() {
         systemStatus.bintracConnected = true;
         systemStatus.lastBintracUpdate = millis();
 
-        // Debug: print weights every 5 reads
+        // Debug: print weights every read (1 second)
         static int readCount = 0;
-        if (++readCount % 5 == 0) {
+        if (++readCount % 1 == 0) {
             Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f\n",
                 systemStatus.currentWeight[0],
                 systemStatus.currentWeight[1],

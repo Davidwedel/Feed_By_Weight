@@ -48,7 +48,7 @@ struct Config {
     uint16_t maxRuntime = 600;    // maximum feeding time in seconds
 
     // Bin filling detection
-    float fillDetectionThreshold = 20.0;  // lbs increase in 10 seconds to trigger pause
+    float fillDetectionThreshold = 20.0;  // lbs increase from previous reading to trigger pause
     uint16_t fillSettlingTime = 60;       // seconds to wait after filling stops
 
     // Telegram settings

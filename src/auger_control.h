@@ -88,9 +88,9 @@ private:
 
     // Bin filling detection and pause state
     FeedingStage _stageBeforePause;
-    float _weight10SecondsAgo;
-    unsigned long _weight10sTrackingTime;
-    float _weightWhenPaused;
+    float _lastWeight;                // Previous weight reading for fill detection
+    float _weightWhenPaused;          // Weight at the moment pause triggered (never changes)
+    float _lastWeightDuringPause;     // Last seen weight while monitoring (updates during pause)
     unsigned long _fillStabilizedTime;
     bool _fillInProgress;
 
