@@ -80,6 +80,11 @@ void setup() {
     // Initialize scheduler
     scheduler.begin(config.timezone);
 
+    // Wait a bit for network stack to stabilize, then start NTP sync
+    // Do this after BinTrac connection proves network is working
+    delay(3000);
+    scheduler.startNTPSync();
+
     // Initialize web server
     webServer = new FeedWebServer(storage, augerControl, bintrac, config, systemStatus);
     webServer->begin();

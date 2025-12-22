@@ -12,6 +12,9 @@ public:
     // Initialize SNTP time sync
     void begin(int timezoneOffset = 0);
 
+    // Start NTP sync (call after network is fully ready)
+    void startNTPSync();
+
     // Update time sync status (non-blocking)
     void update();
 
