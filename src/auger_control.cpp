@@ -288,6 +288,11 @@ void AugerControl::triggerAlarm(const char* reason) {
     _alarmReason[sizeof(_alarmReason) - 1] = '\0';
 
     Serial.printf("ALARM: %s\n", reason);
+
+    // Stop all motors immediately
+    controlAuger(false);
+    controlChain(false);
+    _stage = FeedingStage::FAILED;
 }
 
 void AugerControl::sendWarning(const char* warning) {
