@@ -354,6 +354,23 @@ void FeedWebServer::handleStartFeed(EthernetClient& client) {
 }
 
 void FeedWebServer::handleStopFeed(EthernetClient& client) {
+    // Only record if actually feeding
+    if (_augerControl.isFeeding()) {
+        // Create feed event record for manual stop
+        FeedEvent event;
+        event.timestamp = time(NULL);  // Get current Unix timestamp
+        event.feedCycle = 0;  // Manual feed has no cycle
+        event.targetWeight = _config.targetWeight;
+        event.actualWeight = _augerControl.getWeightDispensed();
+        event.duration = _augerControl.getDuration();
+        event.alarmTriggered = true;
+        strcpy(event.alarmReason, "Manually stopped");
+
+        // Save to history
+        _storage.addFeedEvent(event);
+        Serial.println("Manual stop recorded to history");
+    }
+
     _augerControl.stopAll();
     sendJsonResponse(client, "{\"success\":true}");
 }
