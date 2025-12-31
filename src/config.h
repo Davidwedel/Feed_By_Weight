@@ -9,10 +9,10 @@
 
 // Relay pins (LilyGo 8-channel board)
 #define RELAY_1_PIN 33  // Auger (swapped - physical wiring was backwards)
-#define RELAY_2_PIN 32  // Chain
-#define RELAY_3_PIN 25
-#define RELAY_4_PIN 26
-#define RELAY_5_PIN 27
+#define RELAY_2_PIN 32  // Chain A
+#define RELAY_3_PIN 25  // Chain B
+#define RELAY_4_PIN 26  // Chain C
+#define RELAY_5_PIN 27  // Chain D
 #define RELAY_6_PIN 14
 #define RELAY_7_PIN 12
 #define RELAY_8_PIN 13
