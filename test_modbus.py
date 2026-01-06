@@ -101,17 +101,14 @@ def parse_bin_weight(registers, offset=0):
     if offset >= len(registers):
         return None
 
-    # HouseLink uses only the first register (16-bit signed)
+    # HouseLink uses only the first register (16-bit UNSIGNED)
     raw_value = registers[offset]
 
-    # Convert to signed 16-bit
-    if raw_value > 32767:
-        raw_value = raw_value - 65536
-
-    # Check for disabled bin marker
-    if raw_value == -32767:
+    # Check for disabled bin marker (32769 = -32767 in signed representation)
+    if raw_value == 32769:
         return 0.0
 
+    # Return as-is (unsigned 16-bit value)
     return float(raw_value)
 
 def main():
