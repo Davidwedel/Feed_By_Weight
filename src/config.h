@@ -19,9 +19,9 @@
 
 // W5500 Ethernet SPI pins (LilyGo T-Relay W5500 Shield)
 #define W5500_CS_PIN 27
-#define W5500_MISO_PIN 34
-#define W5500_MOSI_PIN 26
-#define W5500_SCK_PIN 22
+#define W5500_MISO_PIN 6
+#define W5500_MOSI_PIN 15
+#define W5500_SCK_PIN 14
 #define W5500_RESET_PIN 23
 
 // MAC address for W5500
@@ -53,7 +53,8 @@
 #define WEIGHT_CHECK_INTERVAL 1000 // Check weight every second
 #define MIN_WEIGHT_CHANGE 0.1      // Minimum detectable weight change
 #define ALARM_CHECK_WINDOW 60000   // Check alarm condition over 1 minute
-#define EMERGENCY_STOP_WEIGHT -50.0 // Stop if weight increases (bin filling error)
+#define EMERGENCY_STOP_WEIGHT                                                  \
+  -50.0 // Stop if weight increases (bin filling error)
 
 // Storage
 #define CONFIG_FILE "/config.json"
