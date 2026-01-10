@@ -53,8 +53,7 @@
 #define WEIGHT_CHECK_INTERVAL 1000 // Check weight every second
 #define MIN_WEIGHT_CHANGE 0.1      // Minimum detectable weight change
 #define ALARM_CHECK_WINDOW 60000   // Check alarm condition over 1 minute
-#define EMERGENCY_STOP_WEIGHT                                                  \
-  -50.0 // Stop if weight increases (bin filling error)
+#define EMERGENCY_STOP_WEIGHT -50.0 // Stop if weight increases (bin filling error)
 
 // Storage
 #define CONFIG_FILE "/config.json"
