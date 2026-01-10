@@ -73,12 +73,12 @@ bool BinTrac::readAllBins(float weights[4]) {
     }
 
     // Parse bins A, B, C (format: each is 2 registers, but only first register is the value)
-    // This HouseLink doesn't match the manual - it's not 32-bit big-endian!
+    // This HouseLink returns unsigned 16-bit values in the first register
     for (int i = 0; i < 3; i++) {
-        int32_t rawWeight = (int16_t)buffer[i * 2];  // Cast to signed 16-bit
+        uint16_t rawWeight = buffer[i * 2];  // Unsigned 16-bit
 
-        // Check for disabled bin (-32767 indicates bin not enabled)
-        if (rawWeight == -32767) {
+        // Check for disabled bin (32769 = 0x8001 = unsigned representation of -32767)
+        if (rawWeight == 32769) {
             weights[i] = 0.0;
         } else {
             weights[i] = (float)rawWeight;
@@ -88,8 +88,8 @@ bool BinTrac::readAllBins(float weights[4]) {
     // Try to read bin D separately
     uint16_t binDBuffer[2];
     if (modbusRead(MODBUS_BIN_D_ADDR, 2, binDBuffer)) {
-        int32_t rawWeight = (int16_t)binDBuffer[0];
-        weights[3] = (rawWeight == -32767) ? 0.0 : (float)rawWeight;
+        uint16_t rawWeight = binDBuffer[0];
+        weights[3] = (rawWeight == 32769) ? 0.0 : (float)rawWeight;
     } else {
         // Bin D not available
         weights[3] = 0.0;
@@ -114,10 +114,10 @@ bool BinTrac::readBin(uint8_t binIndex, float& weight) {
         return false;
     }
 
-    int32_t rawWeight = parseWeight(buffer);
+    uint16_t rawWeight = buffer[0];  // Use first register only (unsigned 16-bit)
 
-    // Check for disabled bin
-    if (rawWeight == -32767 || rawWeight == 0xFFFF8001) {
+    // Check for disabled bin (32769 = 0x8001 = unsigned representation of -32767)
+    if (rawWeight == 32769) {
         weight = 0.0;
     } else {
         weight = (float)rawWeight;
