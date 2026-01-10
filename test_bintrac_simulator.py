@@ -7,7 +7,7 @@ Protocol:
 - Modbus TCP on port 502
 - Function Code 4 (Read Input Registers)
 - Registers: 1000-1001 (Bin A), 1002-1003 (Bin B), 1004-1005 (Bin C), 1006-1007 (Bin D)
-- Each bin: 2 registers, weight stored as signed 16-bit in first register
+- Each bin: 2 registers, weight stored as unsigned 16-bit in first register
 - Value -32767 = bin disabled
 """
 
@@ -111,7 +111,7 @@ class ModbusTCPServer:
                 if bin_index < 4 and register_offset == 0:
                     # First register of bin pair - contains weight
                     weight = weights[bin_index]
-                    response_data.extend(struct.pack('>h', weight))  # Signed 16-bit
+                    response_data.extend(struct.pack('>H', weight))  # Unsigned 16-bit
                 else:
                     # Second register of pair or out of range - send 0
                     response_data.extend(struct.pack('>H', 0))
@@ -151,7 +151,7 @@ class BinTracSimulator:
         self.root.title("BinTrac HouseLink Simulator")
         self.root.geometry("800x700")
 
-        # Bin weights (use signed 16-bit range)
+        # Bin weights (use unsigned 16-bit range: 0-65535)
         self.weights = [0, 0, 0, 0]
         self.enabled = [True, True, True, True]
 
@@ -258,7 +258,7 @@ class BinTracSimulator:
         """Toggle bin enabled/disabled"""
         self.enabled[index] = enabled
         if not enabled:
-            self.weights[index] = -32767  # Disabled marker
+            self.weights[index] = 32769  # Disabled marker (unsigned representation of -32767)
         else:
             self.weights[index] = 0
         self._update_total()
@@ -267,8 +267,8 @@ class BinTracSimulator:
         """Set weight from entry field"""
         try:
             value = int(entry.get())
-            # Clamp to signed 16-bit range
-            value = max(-32767, min(32767, value))
+            # Clamp to unsigned 16-bit range
+            value = max(0, min(65535, value))
             self.weights[index] = value
             display.config(text=f"{value} lbs")
             self._update_total()
@@ -280,15 +280,15 @@ class BinTracSimulator:
         if not self.enabled[index]:
             return
         new_value = self.weights[index] + delta
-        # Clamp to signed 16-bit range
-        new_value = max(-32767, min(32767, new_value))
+        # Clamp to unsigned 16-bit range
+        new_value = max(0, min(65535, new_value))
         self.weights[index] = new_value
         display.config(text=f"{new_value} lbs")
         self._update_total()
 
     def _update_total(self):
         """Update total weight display"""
-        total = sum(w for w, e in zip(self.weights, self.enabled) if e and w != -32767)
+        total = sum(w for w, e in zip(self.weights, self.enabled) if e and w != 32769)
         self.total_label.config(text=f"{total} lbs")
 
     def _get_weights(self):
