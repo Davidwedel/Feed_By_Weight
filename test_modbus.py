@@ -7,10 +7,13 @@ Tests reading bin weights from the device
 import struct
 import socket
 import sys
+import select
+import time
+import traceback
 
 # Configuration
-HOST = "10.0.0.35"  # BinTrac IP
-PORT = 502          # Modbus TCP port
+HOST = "192.168.1.173"
+PORT = 502          # Modbus TCP por
 DEVICE_ID = 1       # Unit ID
 
 # Modbus addresses (from your config)
@@ -32,6 +35,9 @@ def read_modbus_registers(host, port, device_id, start_addr, num_registers):
         sock.connect((host, port))
         print("Connected!")
 
+        # Small delay after connection to let device stabilize
+        time.sleep(0.1)
+
         # Build Modbus TCP request
         transaction_id = 1
         protocol_id = 0
@@ -51,7 +57,12 @@ def read_modbus_registers(host, port, device_id, start_addr, num_registers):
         )
 
         print(f"Sending request: Read {num_registers} registers from address {start_addr}")
-        sock.send(request)
+        print(f"Request bytes: {request.hex()}")
+        sent = sock.send(request)
+        print(f"Request sent ({sent} bytes), waiting for response...")
+
+        # Give device time to process
+        time.sleep(0.2)
 
         # Read response header (9 bytes minimum)
         header = sock.recv(9)
@@ -92,8 +103,13 @@ def read_modbus_registers(host, port, device_id, start_addr, num_registers):
         return None
     except Exception as e:
         print(f"ERROR: {e}")
+        traceback.print_exc()
         return None
     finally:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except:
+            pass
         sock.close()
 
 def parse_bin_weight(registers, offset=0):
@@ -134,6 +150,11 @@ def main():
 
     print()
     print("-" * 60)
+
+    # Delay between tests to let device reset
+    print("Waiting 2 seconds before next test...")
+    time.sleep(2)
+    print()
 
     # Test 2: Read bin D separately
     print("Test 2: Reading bin D (2 registers from address 1006)")
