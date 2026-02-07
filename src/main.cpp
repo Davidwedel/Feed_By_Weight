@@ -131,28 +131,20 @@ void loop() {
     // Handle web server requests
     webServer->handleClient();
 
-    // Read bin weights when feeding, or periodically in idle (every 10 seconds to keep connection alive)
-    bool needWeightReading = (systemStatus.state == SystemState::FEEDING ||
-                              systemStatus.state == SystemState::WAITING_FOR_SCHEDULE);
-
-    unsigned long readInterval = needWeightReading ? WEIGHT_CHECK_INTERVAL : 10000;
-
-    if (millis() - lastBintracRead > readInterval) {
+    // Read bin weights every 3 seconds, then update status immediately after
+    if (millis() - lastBintracRead > 3000) {
         updateBinWeights();
         lastBintracRead = millis();
-    }
 
-    // Run main state machine
-    runStateMachine();
-
-    // Update system status periodically
-    if (millis() - lastStatusUpdate > STATUS_UPDATE_INTERVAL) {
         updateSystemStatus();
         lastStatusUpdate = millis();
 
         // Blink status LED
         digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));
     }
+
+    // Run main state machine
+    runStateMachine();
 
     delay(10);
 }
