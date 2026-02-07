@@ -161,21 +161,49 @@ def main():
         connection_flag = connection_flag - 1
         time.sleep(5)
 
-    # Continuous weight reading loop - prints all bins on one line every second
+    # Continuous weight reading loop with change tracking and lb/min rate
     print("Reading bin weights (Ctrl+C to stop)...")
-    print("-" * 60)
+    print("   A:    +/-   lb/min |    B:    +/-   lb/min |    C:    +/-   lb/min |    D:    +/-   lb/min | Total:   +/-   lb/min")
+    print("-" * 115)
+
+    prev_weights = None
+    prev_time = None
+
     try:
         while True:
             result = client.read_input_registers(ALL_BINS_ADDR - 1, count=8, device_id=DEVICE_ID)
             if result.isError():
                 print(f"Read error: {result}")
+                time.sleep(3)
+                continue
+
+            now = time.time()
+            weights = [
+                parse_bin_weight(result.registers, 0),
+                parse_bin_weight(result.registers, 2),
+                parse_bin_weight(result.registers, 4),
+                parse_bin_weight(result.registers, 6),
+            ]
+            weights.append(sum(weights))  # Total
+            labels = ["A", "B", "C", "D", "Total"]
+
+            if prev_weights is None:
+                # First reading - no change data yet
+                parts = []
+                for i in range(len(labels)):
+                    parts.append(f"{weights[i]:>7.0f}    --      --")
+                print(" | ".join(parts))
             else:
-                a = parse_bin_weight(result.registers, 0)
-                b = parse_bin_weight(result.registers, 2)
-                c = parse_bin_weight(result.registers, 4)
-                d = parse_bin_weight(result.registers, 6)
-                total = a + b + c + d
-                print(f"A: {a}  B: {b}  C: {c}  D: {d}  Total: {total} lbs")
+                elapsed = now - prev_time
+                parts = []
+                for i in range(len(labels)):
+                    change = weights[i] - prev_weights[i]
+                    lb_min = change / elapsed * 60
+                    parts.append(f"{weights[i]:>7.0f} {change:>+5.0f} {lb_min:>+7.1f}")
+                print(" | ".join(parts))
+
+            prev_weights = weights
+            prev_time = now
             time.sleep(3)
     finally:
         client.close()
