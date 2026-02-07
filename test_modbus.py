@@ -54,10 +54,7 @@ def read_registers(client, start_addr, num_registers):
 
     print(f"Reading {num_registers} registers from address {start_addr} (protocol addr: {protocol_addr})")
 
-    try:
-        result = client.read_input_registers(protocol_addr, num_registers, unit=DEVICE_ID)
-    except TypeError:
-        result = client.read_input_registers(protocol_addr, num_registers, slave=DEVICE_ID)
+    result = client.read_input_registers(protocol_addr, count=num_registers, device_id=DEVICE_ID)
 
     if result.isError():
         print(f"ERROR: Modbus error - {result}")
@@ -88,10 +85,7 @@ def scan_device_ids(client):
     for test_id in range(1, 21):
         print(f"\nTrying device ID {test_id}...")
         try:
-            try:
-                result = client.read_input_registers(ALL_BINS_ADDR - 1, 2, unit=test_id)
-            except TypeError:
-                result = client.read_input_registers(ALL_BINS_ADDR - 1, 2, slave=test_id)
+            result = client.read_input_registers(ALL_BINS_ADDR - 1, count=2, device_id=test_id)
 
             if not result.isError():
                 print(f"\n{'='*60}")
@@ -122,6 +116,30 @@ def main():
 
     print("Connected!")
     print()
+
+    while True:
+        if not client.is_socket_open():
+            print("Connection lost! Reconnecting...")
+            if not client.connect():
+                print("ERROR: Could not reconnect")
+                time.sleep(5)
+                continue
+            print("Reconnected!")
+
+        try:
+            result = client.read_input_registers(ALL_BINS_ADDR - 1, count=2, device_id=DEVICE_ID)
+        except Exception as e:
+            print(f"Connection check failed: {e}")
+            time.sleep(5)
+            continue
+
+        if result.isError():
+            print(f"Device not responding: {result}")
+            time.sleep(5)
+            continue
+
+        print("Modbus connection OK")
+        time.sleep(5)
 
     try:
         if len(sys.argv) > 1 and sys.argv[1] == "--scan":
