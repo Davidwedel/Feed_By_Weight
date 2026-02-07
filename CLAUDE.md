@@ -38,7 +38,7 @@ The system supports **both** Ethernet (W5500) and WiFi. Toggle in `src/config.h`
 **WiFi mode:** Set WIFI_SSID and WIFI_PASSWORD in config.h
 **Ethernet mode:** Uses DHCP, falls back to static IP 192.168.1.177
 
-**Current configuration:** WiFi mode on "CW Wifi" network
+**Current configuration:** Ethernet mode
 
 ## Architecture & State Machine
 
@@ -71,10 +71,11 @@ State transitions are driven by:
 
 **Weight Monitoring:**
 - BinTrac reads 4 bins (A, B, C, D) as 32-bit signed integers via Modbus TCP
-- Address 1000, Function Code 4 (Read Input Registers), 8 registers total
+- Address 1000 (sent as 999 on wire, 0-indexed), Function Code 4, 8 registers in one request
 - Value -32767 (0xFFFF8001) indicates bin disabled
 - Total weight = sum of all enabled bins
 - Weight dispensed = startWeight - currentWeight
+- Bins are read every 3 seconds in all states, UI updates immediately after each read
 
 **Alarm Detection (in AugerControl::update()):**
 - Tracks weight change per minute
@@ -96,10 +97,13 @@ State transitions are driven by:
 - **Important:** Uses EthernetUDP for NTP even in WiFi mode (works with both)
 
 **BinTrac**:
-- Modbus TCP client to HouseLink HL-10E
-- Reads all 4 bins in single transaction (8 registers)
+- Raw Modbus TCP client to HouseLink HL-10E (builds packets manually, no Modbus library)
+- Reads all 4 bins in single transaction (8 registers from address 999)
+- `modbusRead()` subtracts 1 from address to convert 1-based config to 0-based wire protocol
+- Parses each bin as 32-bit signed integer via `parseWeight()` (two 16-bit registers, big-endian)
 - Auto-reconnect logic with timeout handling
 - Returns weights as float array [A, B, C, D]
+- `readBin()` was removed — only `readAllBins()` exists
 
 **Storage**:
 - LittleFS persistence for Config and FeedEvent history
@@ -125,14 +129,15 @@ Without this, web browser shows "Web interface not installed" placeholder. The A
 
 ## BinTrac Modbus Protocol
 
-- **IP:** 192.168.1.100 (default, configurable via web)
+- **IP:** 192.168.1.173 (configurable via web)
 - **Port:** 502
 - **Function Code:** 4 (Read Input Registers)
-- **Address:** 1000 (reads all 8 registers = 4 bins × 2 registers each)
-- **Data Format:** Each bin is 32-bit signed integer, big-endian
-- **Special Value:** -32767 = bin disabled
+- **Config Address:** 1000 (converted to 999 on wire — Modbus is 0-indexed)
+- **Registers:** 8 total = 4 bins × 2 registers each, all read in one request
+- **Data Format:** Each bin is 32-bit signed integer, big-endian (high word first)
+- **Special Value:** -32767 (0xFFFF8001) = bin disabled
 
-**Key Implementation Detail:** The modbus-esp8266 library is used even though this is ESP32. It works fine and handles the Modbus TCP protocol.
+**Key Implementation Detail:** The ESP builds raw Modbus TCP packets manually (no library). The `modbusRead()` function in `bintrac.cpp` constructs the MBAP header + PDU, sends over TCP, and parses the response. Address subtraction (1000→999) happens inside `modbusRead()`.
 
 ## Telegram Bot
 
@@ -151,15 +156,18 @@ Uses UniversalTelegramBot library with SSL:
 4. **Scheduler daily reset:** Feed completion flags reset at midnight, don't manually clear
 5. **Manual control vs Auto feed:** Manual mode sets MANUAL_OVERRIDE state, preventing auto feeds
 6. **LittleFS corruption:** If "Corrupted dir pair" error appears, filesystem needs format (Storage::formatFilesystem())
+7. **Modbus address offset:** Config uses 1-based addresses (1000), but `modbusRead()` subtracts 1 before sending on wire. Don't double-subtract.
+8. **pymodbus 3.11+ API:** Uses keyword-only args `count=` and `device_id=`. The old `slave=` and `unit=` keywords no longer work.
 
 ## System Constants (src/config.h)
 
 Key timing values that affect behavior:
-- `WEIGHT_CHECK_INTERVAL`: 1000ms (how often to check bin weight during feeding)
+- Bin weight read interval: 3000ms (hardcoded in main.cpp loop, all states)
+- UI status update: triggered immediately after each bin weight read
 - `BINTRAC_TIMEOUT`: 5000ms (Modbus TCP timeout)
 - `NTP_UPDATE_INTERVAL`: 3600000ms (sync time every hour)
-- `STATUS_UPDATE_INTERVAL`: 5000ms (web status refresh rate)
-- `TELEGRAM_UPDATE_INTERVAL`: 60000ms (check for Telegram messages)
+- `TELEGRAM_UPDATE_INTERVAL`: 1000ms (check for Telegram messages)
+- `MODBUS_ALL_BINS_LEN`: 8 (4 bins × 2 registers each, single request)
 
 ## Typical Modification Patterns
 
@@ -180,3 +188,16 @@ Key timing values that affect behavior:
 2. Implement in web_server.cpp (use async signature)
 3. Register in FeedWebServer::begin() with `_server->on()`
 4. Update data/index.html JavaScript to call it
+
+## Python Test Script (test_modbus.py)
+
+Uses pymodbus 3.11.4 (in `.venv/`) to test BinTrac connectivity and monitor weights.
+
+```bash
+.venv/bin/python test_modbus.py
+```
+
+- Runs a connection health check loop, then continuous weight monitoring
+- Prints all 4 bins + total on one line with change (+/-) and rate (lb/min)
+- EMA smoothing applied to readings (configurable `ema_alpha` in the loop)
+- pymodbus 3.11 API: `read_input_registers(address, count=N, device_id=N)` — keyword-only args, no `slave`/`unit`
