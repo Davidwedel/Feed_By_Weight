@@ -163,7 +163,7 @@ def main():
 
     try:
         # Test 1: Read all bins
-        print("Test 1: Reading all bins A, B, C, D (8 registers from address 1000)")
+        print("Test: Reading all bins A, B, C, D (8 registers from address 1000)")
         print("-" * 60)
         registers = read_registers(client, ALL_BINS_ADDR, 8)
 
@@ -171,20 +171,6 @@ def main():
             print()
             print("Parsed weights:")
             print_weights(registers)
-
-        print()
-        print("-" * 60)
-
-        # Test 2: Read single bin
-        print("Test 2: Reading bin A only (2 registers from address 1000)")
-        print("-" * 60)
-        registers = read_registers(client, BIN_A_ADDR, 2)
-
-        if registers:
-            print()
-            print("Parsed weight:")
-            bin_a = parse_bin_weight(registers, 0)
-            print(f"  Bin A: {bin_a} lbs")
 
         print()
         print("=" * 60)
