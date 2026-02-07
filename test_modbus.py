@@ -161,22 +161,22 @@ def main():
         connection_flag = connection_flag - 1
         time.sleep(5)
 
+    # Continuous weight reading loop - prints all bins on one line every second
+    print("Reading bin weights (Ctrl+C to stop)...")
+    print("-" * 60)
     try:
-        # Test 1: Read all bins
-        print("Test: Reading all bins A, B, C, D (8 registers from address 1000)")
-        print("-" * 60)
-        registers = read_registers(client, ALL_BINS_ADDR, 8)
-
-        if registers:
-            print()
-            print("Parsed weights:")
-            print_weights(registers)
-
-        print()
-        print("=" * 60)
-        print("Test complete")
-        print("=" * 60)
-
+        while True:
+            result = client.read_input_registers(ALL_BINS_ADDR - 1, count=8, device_id=DEVICE_ID)
+            if result.isError():
+                print(f"Read error: {result}")
+            else:
+                a = parse_bin_weight(result.registers, 0)
+                b = parse_bin_weight(result.registers, 2)
+                c = parse_bin_weight(result.registers, 4)
+                d = parse_bin_weight(result.registers, 6)
+                total = a + b + c + d
+                print(f"A: {a}  B: {b}  C: {c}  D: {d}  Total: {total} lbs")
+            time.sleep(3)
     finally:
         client.close()
 
