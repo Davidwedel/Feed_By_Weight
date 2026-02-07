@@ -63,21 +63,19 @@ bool BinTrac::reconnect() {
 }
 
 bool BinTrac::readAllBins(float weights[4]) {
-    // NOTE: This HouseLink only allows reading 6 registers (3 bins)
-    // Bins A, B, C work. Bin D must be read separately or returns error.
-    uint16_t buffer[6];
+    // Read all 4 bins in a single 8-register request
+    uint16_t buffer[8];
 
     if (!modbusRead(MODBUS_ALL_BINS_ADDR, MODBUS_ALL_BINS_LEN, buffer)) {
         _connected = false;
         return false;
     }
 
-    // Parse bins A, B, C (format: each is 2 registers, but only first register is the value)
-    // This HouseLink doesn't match the manual - it's not 32-bit big-endian!
-    for (int i = 0; i < 3; i++) {
-        int32_t rawWeight = (int16_t)buffer[i * 2];  // Cast to signed 16-bit
+    // Each bin is a 32-bit signed integer stored across 2 registers (big-endian)
+    for (int i = 0; i < 4; i++) {
+        int32_t rawWeight = parseWeight(&buffer[i * 2]);
 
-        // Check for disabled bin (-32767 indicates bin not enabled)
+        // -32767 (0xFFFF8001) means bin is disabled/not connected
         if (rawWeight == -32767) {
             weights[i] = 0.0;
         } else {
@@ -85,48 +83,11 @@ bool BinTrac::readAllBins(float weights[4]) {
         }
     }
 
-    // Try to read bin D separately
-    uint16_t binDBuffer[2];
-    if (modbusRead(MODBUS_BIN_D_ADDR, 2, binDBuffer)) {
-        int32_t rawWeight = (int16_t)binDBuffer[0];
-        weights[3] = (rawWeight == -32767) ? 0.0 : (float)rawWeight;
-    } else {
-        // Bin D not available
-        weights[3] = 0.0;
-    }
-
     _connected = true;
     _lastReadTime = millis();
     return true;
 }
 
-bool BinTrac::readBin(uint8_t binIndex, float& weight) {
-    if (binIndex > 3) {
-        snprintf(_lastError, sizeof(_lastError), "Invalid bin index: %d", binIndex);
-        return false;
-    }
-
-    uint16_t address = MODBUS_BIN_A_ADDR + (binIndex * 2);
-    uint16_t buffer[2];
-
-    if (!modbusRead(address, 2, buffer)) {
-        _connected = false;
-        return false;
-    }
-
-    int32_t rawWeight = parseWeight(buffer);
-
-    // Check for disabled bin
-    if (rawWeight == -32767 || rawWeight == 0xFFFF8001) {
-        weight = 0.0;
-    } else {
-        weight = (float)rawWeight;
-    }
-
-    _connected = true;
-    _lastReadTime = millis();
-    return true;
-}
 
 bool BinTrac::isConnected() {
     // Consider disconnected if no successful read in last 30 seconds
@@ -149,6 +110,9 @@ int32_t BinTrac::parseWeight(uint16_t* data) {
 }
 
 bool BinTrac::modbusRead(uint16_t address, uint16_t length, uint16_t* buffer) {
+    // Convert from 1-based display address to 0-based Modbus protocol address
+    address = address - 1;
+
     // Clear buffer before reading
     memset(buffer, 0, length * sizeof(uint16_t));
 

@@ -14,9 +14,6 @@ public:
     // Read all bin weights (returns true if successful)
     bool readAllBins(float weights[4]);
 
-    // Read individual bin weight
-    bool readBin(uint8_t binIndex, float& weight);
-
     // Check connection status
     bool isConnected();
 

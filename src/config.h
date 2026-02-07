@@ -37,16 +37,12 @@
 #define BINTRAC_RETRY_DELAY 2000
 
 // BinTrac Modbus addresses
-// NOTE: This HouseLink firmware differs from manual!
-// - Only supports reading 6 registers max (bins A, B, C)
-// - Bin D not accessible via single read
 #define MODBUS_BIN_A_ADDR 1000
 #define MODBUS_BIN_B_ADDR 1002
 #define MODBUS_BIN_C_ADDR 1004
 #define MODBUS_BIN_D_ADDR 1006
 #define MODBUS_ALL_BINS_ADDR 1000
-#define MODBUS_ALL_BINS_LEN                                                    \
-  6 // Changed from 8 - this HouseLink only supports 6!
+#define MODBUS_ALL_BINS_LEN 8 // 4 bins x 2 registers each
 #define MODBUS_FUNCTION_CODE 4 // Input register
 
 // Feeding control constants
