@@ -114,15 +114,15 @@ void Scheduler::update() {
     }
 }
 
-bool Scheduler::shouldFeed(const uint16_t feedTimes[4], uint8_t& feedCycle) {
+bool Scheduler::shouldFeed(const uint16_t feedTimes[4], uint8_t numFeedings, uint8_t& feedCycle) {
     if (!isTimeSynced()) {
         return false;
     }
 
     uint16_t currentMinutes = getCurrentMinutes();
 
-    // Check each feeding time
-    for (int i = 0; i < 4; i++) {
+    // Check each active feeding time
+    for (int i = 0; i < numFeedings; i++) {
         // Skip if already completed today
         if (_feedingCompleted[i]) {
             continue;

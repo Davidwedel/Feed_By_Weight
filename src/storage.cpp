@@ -37,7 +37,12 @@ bool Storage::loadConfig(Config& config) {
     }
 
     // Feeding parameters
-    config.targetWeight = prefs.getFloat("targetWeight", 50.0);
+    config.dailyTotal = prefs.getFloat("dailyTotal", 200.0);
+    config.numFeedings = prefs.getUChar("numFeedings", 4);
+    for (int i = 0; i < 4; i++) {
+        String key = "feedAmt" + String(i);
+        config.feedAmounts[i] = prefs.getFloat(key.c_str(), 50.0);
+    }
     config.weightUnit = (WeightUnit)prefs.getUChar("weightUnit", 0);
     config.chainPreRunTime = prefs.getUShort("chainPreRun", 10);
 
@@ -46,8 +51,8 @@ bool Storage::loadConfig(Config& config) {
     config.maxRuntime = prefs.getUShort("maxRuntime", 600);
 
     // Bin filling detection
-    config.fillDetectionThreshold = prefs.getFloat("fillThresh", 20.0);
-    config.fillSettlingTime = prefs.getUShort("fillSettle", 60);
+    config.fillDetectionRate = prefs.getFloat("fillRate", 20.0);
+    config.fillSettlingTime = prefs.getUShort("fillSettle", 1);
 
     // Telegram
     strlcpy(config.telegramToken, prefs.getString("tgToken", "").c_str(), sizeof(config.telegramToken));
@@ -79,7 +84,12 @@ bool Storage::saveConfig(const Config& config) {
     }
 
     // Feeding parameters
-    prefs.putFloat("targetWeight", config.targetWeight);
+    prefs.putFloat("dailyTotal", config.dailyTotal);
+    prefs.putUChar("numFeedings", config.numFeedings);
+    for (int i = 0; i < 4; i++) {
+        String key = "feedAmt" + String(i);
+        prefs.putFloat(key.c_str(), config.feedAmounts[i]);
+    }
     prefs.putUChar("weightUnit", (uint8_t)config.weightUnit);
     prefs.putUShort("chainPreRun", config.chainPreRunTime);
 
@@ -88,7 +98,7 @@ bool Storage::saveConfig(const Config& config) {
     prefs.putUShort("maxRuntime", config.maxRuntime);
 
     // Bin filling detection
-    prefs.putFloat("fillThresh", config.fillDetectionThreshold);
+    prefs.putFloat("fillRate", config.fillDetectionRate);
     prefs.putUShort("fillSettle", config.fillSettlingTime);
 
     // Telegram

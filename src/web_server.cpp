@@ -222,8 +222,18 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
             _config.feedTimes[i] = times[i];
         }
     }
-    if (doc["targetWeight"].is<float>()) {
-        _config.targetWeight = doc["targetWeight"];
+    if (doc["dailyTotal"].is<float>()) {
+        _config.dailyTotal = doc["dailyTotal"];
+    }
+    if (doc["numFeedings"].is<int>()) {
+        uint8_t n = doc["numFeedings"];
+        if (n >= 1 && n <= 4) _config.numFeedings = n;
+    }
+    if (doc["feedAmounts"].is<JsonArray>()) {
+        JsonArray amounts = doc["feedAmounts"];
+        for (int i = 0; i < 4 && i < (int)amounts.size(); i++) {
+            _config.feedAmounts[i] = amounts[i];
+        }
     }
     if (doc["weightUnit"].is<int>()) {
         _config.weightUnit = (WeightUnit)(int)doc["weightUnit"];
@@ -237,8 +247,8 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
     if (doc["maxRuntime"].is<int>()) {
         _config.maxRuntime = doc["maxRuntime"];
     }
-    if (doc["fillDetectionThreshold"].is<float>()) {
-        _config.fillDetectionThreshold = doc["fillDetectionThreshold"];
+    if (doc["fillDetectionRate"].is<float>()) {
+        _config.fillDetectionRate = doc["fillDetectionRate"];
     }
     if (doc["fillSettlingTime"].is<int>()) {
         _config.fillSettlingTime = doc["fillSettlingTime"];
@@ -346,7 +356,7 @@ void FeedWebServer::handleStartFeed(EthernetClient& client) {
     }
     _status.weightAtStart = totalWeight;
 
-    _augerControl.startFeeding(_config.targetWeight, _config.chainPreRunTime, _config.maxRuntime, _config.fillDetectionThreshold, _config.fillSettlingTime);
+    _augerControl.startFeeding(_config.feedAmounts[0], _config.chainPreRunTime, _config.maxRuntime, _config.fillDetectionRate, _config.fillSettlingTime);
     _status.state = SystemState::FEEDING;
     _status.feedStartTime = millis();
 
@@ -360,7 +370,7 @@ void FeedWebServer::handleStopFeed(EthernetClient& client) {
         FeedEvent event;
         event.timestamp = time(NULL);  // Get current Unix timestamp
         event.feedCycle = 0;  // Manual feed has no cycle
-        event.targetWeight = _config.targetWeight;
+        event.targetWeight = _config.feedAmounts[0];
         event.actualWeight = _augerControl.getWeightDispensed();
         event.duration = _augerControl.getDuration();
         event.alarmTriggered = true;
@@ -386,12 +396,17 @@ String FeedWebServer::configToJson() {
         times.add(_config.feedTimes[i]);
     }
 
-    doc["targetWeight"] = _config.targetWeight;
+    doc["dailyTotal"] = _config.dailyTotal;
+    doc["numFeedings"] = _config.numFeedings;
+    JsonArray amounts = doc["feedAmounts"].to<JsonArray>();
+    for (int i = 0; i < 4; i++) {
+        amounts.add(_config.feedAmounts[i]);
+    }
     doc["weightUnit"] = (int)_config.weightUnit;
     doc["chainPreRunTime"] = _config.chainPreRunTime;
     doc["alarmThreshold"] = _config.alarmThreshold;
     doc["maxRuntime"] = _config.maxRuntime;
-    doc["fillDetectionThreshold"] = _config.fillDetectionThreshold;
+    doc["fillDetectionRate"] = _config.fillDetectionRate;
     doc["fillSettlingTime"] = _config.fillSettlingTime;
     doc["telegramToken"] = _config.telegramToken;
     doc["telegramChatID"] = _config.telegramChatID;

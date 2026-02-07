@@ -39,7 +39,9 @@ struct Config {
     uint16_t feedTimes[4] = {360, 720, 1080, 1440};  // 6am, 12pm, 6pm, 12am
 
     // Feeding parameters
-    float targetWeight = 50.0;
+    float dailyTotal = 200.0;                          // total lbs to dispense per day
+    float feedAmounts[4] = {50.0, 50.0, 50.0, 50.0};  // per-feeding target (last active auto-calculates)
+    uint8_t numFeedings = 4;                           // number of active feedings (1-4)
     WeightUnit weightUnit = WeightUnit::POUNDS;
     uint16_t chainPreRunTime = 10;  // seconds
 
@@ -48,8 +50,8 @@ struct Config {
     uint16_t maxRuntime = 600;    // maximum feeding time in seconds
 
     // Bin filling detection
-    float fillDetectionThreshold = 20.0;  // lbs increase from previous reading to trigger pause
-    uint16_t fillSettlingTime = 60;       // seconds to wait after filling stops
+    float fillDetectionRate = 20.0;   // lb/min increase rate to trigger fill pause
+    uint16_t fillSettlingTime = 1;    // minutes to wait after filling stops
 
     // Telegram settings
     char telegramToken[50] = "";

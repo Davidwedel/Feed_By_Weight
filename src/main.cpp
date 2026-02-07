@@ -22,6 +22,7 @@ TelegramBot* telegramBot;
 
 // State tracking
 uint8_t currentFeedCycle = 0;
+float currentFeedTarget = 0;  // target weight for current feeding (captured at start)
 unsigned long lastBintracRead = 0;
 unsigned long lastStatusUpdate = 0;
 bool networkConnected = false;
@@ -33,6 +34,7 @@ void updateSystemStatus();
 void runStateMachine();
 void handleFeedingComplete();
 void handleFeedingFailed();
+float calculateFeedTarget(uint8_t feedCycle);
 
 void setup() {
     Serial.begin(115200);
@@ -282,7 +284,7 @@ void runStateMachine() {
         case SystemState::WAITING_FOR_SCHEDULE:
             if (config.autoFeedEnabled && scheduler.isTimeSynced()) {
                 // Check if it's time to feed
-                if (scheduler.shouldFeed(config.feedTimes, currentFeedCycle)) {
+                if (scheduler.shouldFeed(config.feedTimes, config.numFeedings, currentFeedCycle)) {
                     Serial.printf("Starting scheduled feeding cycle %d\n", currentFeedCycle + 1);
 
                     // Calculate total weight from all bins
@@ -292,8 +294,11 @@ void runStateMachine() {
                     }
                     systemStatus.weightAtStart = totalWeight;
 
+                    // Calculate target for this feeding (last feed auto-balances to daily total)
+                    currentFeedTarget = calculateFeedTarget(currentFeedCycle);
+
                     // Start feeding
-                    augerControl.startFeeding(config.targetWeight, config.chainPreRunTime, config.maxRuntime, config.fillDetectionThreshold, config.fillSettlingTime);
+                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillDetectionRate, config.fillSettlingTime);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 
@@ -353,7 +358,7 @@ void handleFeedingComplete() {
     FeedEvent event;
     event.timestamp = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
     event.feedCycle = currentFeedCycle;
-    event.targetWeight = config.targetWeight;
+    event.targetWeight = currentFeedTarget;
     event.actualWeight = augerControl.getWeightDispensed();
     event.duration = augerControl.getDuration();
     event.alarmTriggered = false;
@@ -390,7 +395,7 @@ void handleFeedingFailed() {
     FeedEvent event;
     event.timestamp = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
     event.feedCycle = currentFeedCycle;
-    event.targetWeight = config.targetWeight;
+    event.targetWeight = currentFeedTarget;
     event.actualWeight = augerControl.getWeightDispensed();
     event.duration = augerControl.getDuration();
     event.alarmTriggered = true;
@@ -417,4 +422,49 @@ void handleFeedingFailed() {
     strncpy(systemStatus.lastError, event.alarmReason, sizeof(systemStatus.lastError) - 1);
 
     Serial.printf("Alarm: %s\n", event.alarmReason);
+}
+
+float calculateFeedTarget(uint8_t feedCycle) {
+    uint8_t lastActiveFeeding = config.numFeedings - 1;
+
+    // Not the last feeding — use configured amount
+    if (feedCycle < lastActiveFeeding) {
+        Serial.printf("Feed %d target: %.1f lbs (configured)\n", feedCycle + 1, config.feedAmounts[feedCycle]);
+        return config.feedAmounts[feedCycle];
+    }
+
+    // Last feeding — auto-calculate from daily total minus actual dispensed today
+    float alreadyDispensed = 0;
+    FeedEvent events[20];
+    int count = 0;
+    storage.getFeedHistory(events, count, 20);
+
+    // Get today's day-of-year for filtering
+    unsigned long now = scheduler.getCurrentTime() + (config.timezone * 3600L);
+    struct tm todayInfo;
+    time_t nowTime = (time_t)now;
+    gmtime_r(&nowTime, &todayInfo);
+    int todayDay = todayInfo.tm_yday;
+    int todayYear = todayInfo.tm_year;
+
+    for (int i = 0; i < count; i++) {
+        unsigned long eventTime = events[i].timestamp + (config.timezone * 3600L);
+        struct tm eventInfo;
+        time_t evTime = (time_t)eventTime;
+        gmtime_r(&evTime, &eventInfo);
+
+        if (eventInfo.tm_yday == todayDay && eventInfo.tm_year == todayYear) {
+            if (events[i].feedCycle < feedCycle) {
+                alreadyDispensed += events[i].actualWeight;
+            }
+        }
+    }
+
+    float remaining = config.dailyTotal - alreadyDispensed;
+    if (remaining < 0) remaining = 0;
+
+    Serial.printf("Last feed calc: dailyTotal=%.1f, dispensed=%.1f, target=%.1f\n",
+                  config.dailyTotal, alreadyDispensed, remaining);
+
+    return remaining;
 }

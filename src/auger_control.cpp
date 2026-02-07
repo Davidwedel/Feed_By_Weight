@@ -17,7 +17,9 @@ AugerControl::AugerControl() {
     _maxRuntime = 600;
     _fillSettlingTime = 60;
     _alarmThreshold = 10.0;
-    _fillDetectionThreshold = 20.0;
+    _fillDetectionRate = 20.0;
+    _fillRateWeight = 0;
+    _fillRateStartTime = 0;
     _weightAtMinuteStart = 0;
     _minuteStartTime = 0;
     _lastValidWeight = 0;
@@ -51,7 +53,7 @@ void AugerControl::begin() {
     Serial.println("Auger and chain control initialized");
 }
 
-void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionThreshold, uint16_t fillSettlingTime) {
+void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate, uint16_t fillSettlingMinutes) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
@@ -60,8 +62,8 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _targetWeight = targetWeight;
     _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
-    _fillDetectionThreshold = fillDetectionThreshold;
-    _fillSettlingTime = fillSettlingTime;
+    _fillDetectionRate = fillDetectionRate;
+    _fillSettlingTime = fillSettlingMinutes * 60;  // convert minutes to seconds internally
     _feedStartTime = millis();
     _chainStartTime = millis();
     _lastWeightCheck = millis();
@@ -77,6 +79,8 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _lastWeight = 0;
     _fillInProgress = false;
     _fillStabilizedTime = 0;
+    _fillRateWeight = 0;
+    _fillRateStartTime = 0;
     strcpy(_alarmReason, "");
 
     // Start with chain only
@@ -124,22 +128,39 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Calculate weight dispensed (weight should decrease as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
 
-    // Check for bin filling BEFORE stage-specific logic (only if not already paused)
-    // Compare against previous reading for immediate detection
-    if (_stage != FeedingStage::PAUSED_FOR_FILL &&
-        _lastWeight > 0 &&
-        currentTotalWeight > _lastWeight + _fillDetectionThreshold) {
-        // Pause feeding immediately
-        _stageBeforePause = _stage;
-        controlAuger(false);
-        controlChain(false);
-        _stage = FeedingStage::PAUSED_FOR_FILL;
-        _fillInProgress = true;
-        _weightWhenPaused = currentTotalWeight;  // Save weight at pause (never changes)
-        _lastWeightDuringPause = currentTotalWeight;  // Track current weight during monitoring
-        _fillStabilizedTime = 0;
-        Serial.println("Feed PAUSED - bin filling detected (weight increase from previous reading)");
-        return _stage;
+    // Rate-based bin fill detection (only if not already paused)
+    if (_stage != FeedingStage::PAUSED_FOR_FILL) {
+        if (_fillRateStartTime == 0) {
+            // Initialize rate tracking window
+            _fillRateWeight = currentTotalWeight;
+            _fillRateStartTime = millis();
+        } else {
+            unsigned long rateElapsed = millis() - _fillRateStartTime;
+            if (rateElapsed >= 10000) {  // Evaluate rate every 10 seconds
+                float weightChange = currentTotalWeight - _fillRateWeight;
+                float elapsedMinutes = rateElapsed / 60000.0;
+                float ratePerMinute = weightChange / elapsedMinutes;
+
+                if (ratePerMinute > _fillDetectionRate) {
+                    // Weight increasing faster than threshold — bin fill detected
+                    _stageBeforePause = _stage;
+                    controlAuger(false);
+                    controlChain(false);
+                    _stage = FeedingStage::PAUSED_FOR_FILL;
+                    _fillInProgress = true;
+                    _weightWhenPaused = currentTotalWeight;
+                    _lastWeightDuringPause = currentTotalWeight;
+                    _fillStabilizedTime = 0;
+                    Serial.printf("Feed PAUSED - bin fill detected (%.1f lb/min > %.1f lb/min threshold)\n",
+                                  ratePerMinute, _fillDetectionRate);
+                    return _stage;
+                }
+
+                // Reset window for next evaluation
+                _fillRateWeight = currentTotalWeight;
+                _fillRateStartTime = millis();
+            }
+        }
     }
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
@@ -223,8 +244,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     float weightGain = currentTotalWeight - _weightWhenPaused;
                     _startWeight += weightGain;  // Add the gained weight to baseline
 
-                    // Reset last weight to prevent immediate re-trigger
+                    // Reset tracking to prevent immediate re-trigger
                     _lastWeight = currentTotalWeight;
+                    _fillRateWeight = currentTotalWeight;
+                    _fillRateStartTime = millis();
 
                     Serial.printf("Feed RESUMED after bin fill (+%.2f lbs, settled for %ds)\n",
                                  weightGain, _fillSettlingTime);

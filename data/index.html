@@ -227,23 +227,42 @@
                 </div>
 
                 <div class="form-group">
-                    <label>BinTrac Device ID (0 = auto-discover)</label>
-                    <input type="number" id="bintracDeviceID" min="0" max="255">
+                    <label>BinTrac Device ID</label>
+                    <input type="number" id="bintracDeviceID" min="1" max="255">
                 </div>
 
                 <div class="form-group">
-                    <label>Feeding Times (HH:MM)</label>
-                    <div class="time-inputs">
-                        <input type="time" id="feedTime0">
-                        <input type="time" id="feedTime1">
-                        <input type="time" id="feedTime2">
-                        <input type="time" id="feedTime3">
+                    <label>Number of Daily Feedings</label>
+                    <select id="numFeedings" onchange="updateFeedingRows()">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Daily Total (lbs)</label>
+                    <input type="number" id="dailyTotal" step="0.1" min="0" placeholder="200" onchange="recalcLastFeeding()">
+                </div>
+
+                <div id="feedingRows">
+                    <div class="feeding-row" id="feedRow0" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div><label>Feed 1 Time</label><input type="time" id="feedTime0"></div>
+                        <div><label>Feed 1 Amount (lbs)</label><input type="number" id="feedAmount0" step="0.1" min="0" onchange="recalcLastFeeding()"></div>
                     </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Target Weight</label>
-                    <input type="number" id="targetWeight" step="0.1" min="0">
+                    <div class="feeding-row" id="feedRow1" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div><label>Feed 2 Time</label><input type="time" id="feedTime1"></div>
+                        <div><label>Feed 2 Amount (lbs)</label><input type="number" id="feedAmount1" step="0.1" min="0" onchange="recalcLastFeeding()"></div>
+                    </div>
+                    <div class="feeding-row" id="feedRow2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div><label>Feed 3 Time</label><input type="time" id="feedTime2"></div>
+                        <div><label>Feed 3 Amount (lbs)</label><input type="number" id="feedAmount2" step="0.1" min="0" onchange="recalcLastFeeding()"></div>
+                    </div>
+                    <div class="feeding-row" id="feedRow3" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div><label>Feed 4 Time</label><input type="time" id="feedTime3"></div>
+                        <div><label>Feed 4 Amount (lbs)</label><input type="number" id="feedAmount3" step="0.1" min="0" onchange="recalcLastFeeding()"></div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -264,14 +283,14 @@
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">Bin Filling Detection</h3>
 
                 <div class="form-group">
-                    <label>Fill Detection Threshold (lbs increase)</label>
-                    <input type="number" id="fillDetectionThreshold" step="0.1" min="0" placeholder="20.0">
-                    <small style="color: #666; font-size: 0.9em;">Pause feeding if weight increases by this amount from previous reading</small>
+                    <label>Fill Detection Rate (lb/min increase)</label>
+                    <input type="number" id="fillDetectionRate" step="0.1" min="0" placeholder="20.0">
+                    <small style="color: #666; font-size: 0.9em;">Pause feeding if weight increases at this rate per minute</small>
                 </div>
 
                 <div class="form-group">
-                    <label>Settling Time After Fill (seconds)</label>
-                    <input type="number" id="fillSettlingTime" min="0" placeholder="60">
+                    <label>Settling Time After Fill (minutes)</label>
+                    <input type="number" id="fillSettlingTime" min="0" placeholder="1">
                     <small style="color: #666; font-size: 0.9em;">Wait this long after bin filling stops before resuming</small>
                 </div>
 
@@ -346,6 +365,43 @@
         loadConfig();
         loadHistory();
 
+        function updateFeedingRows() {
+            const numFeedings = parseInt(document.getElementById('numFeedings').value);
+            for (let i = 0; i < 4; i++) {
+                document.getElementById('feedRow' + i).style.display = (i < numFeedings) ? 'grid' : 'none';
+            }
+            recalcLastFeeding();
+        }
+
+        function recalcLastFeeding() {
+            const numFeedings = parseInt(document.getElementById('numFeedings').value);
+            const dailyTotal = parseFloat(document.getElementById('dailyTotal').value) || 0;
+
+            // Enable all amount inputs first
+            for (let i = 0; i < 4; i++) {
+                document.getElementById('feedAmount' + i).disabled = false;
+            }
+
+            // If only 1 feeding, it gets the full daily total
+            if (numFeedings === 1) {
+                document.getElementById('feedAmount0').value = dailyTotal.toFixed(1);
+                document.getElementById('feedAmount0').disabled = true;
+                return;
+            }
+
+            // Sum amounts from all feedings except the last active one
+            let sum = 0;
+            for (let i = 0; i < numFeedings - 1; i++) {
+                sum += parseFloat(document.getElementById('feedAmount' + i).value) || 0;
+            }
+
+            // Last active feeding gets the remainder
+            const lastIdx = numFeedings - 1;
+            const remainder = Math.max(0, dailyTotal - sum);
+            document.getElementById('feedAmount' + lastIdx).value = remainder.toFixed(1);
+            document.getElementById('feedAmount' + lastIdx).disabled = true;
+        }
+
         function loadStatus() {
             fetch(API_BASE + '/api/status')
                 .then(r => r.json())
@@ -379,11 +435,12 @@
                 .then(data => {
                     document.getElementById('bintracIP').value = data.bintracIP;
                     document.getElementById('bintracDeviceID').value = data.bintracDeviceID;
-                    document.getElementById('targetWeight').value = data.targetWeight;
+                    document.getElementById('numFeedings').value = data.numFeedings;
+                    document.getElementById('dailyTotal').value = data.dailyTotal;
                     document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
                     document.getElementById('alarmThreshold').value = data.alarmThreshold;
                     document.getElementById('maxRuntime').value = Math.round(data.maxRuntime / 60);
-                    document.getElementById('fillDetectionThreshold').value = data.fillDetectionThreshold;
+                    document.getElementById('fillDetectionRate').value = data.fillDetectionRate;
                     document.getElementById('fillSettlingTime').value = data.fillSettlingTime;
                     document.getElementById('timezone').value = data.timezone;
                     document.getElementById('telegramEnabled').checked = data.telegramEnabled;
@@ -397,7 +454,10 @@
                         const m = minutes % 60;
                         document.getElementById('feedTime' + i).value =
                             String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+                        document.getElementById('feedAmount' + i).value = data.feedAmounts[i];
                     }
+
+                    updateFeedingRows();
                 })
                 .catch(err => console.error('Config fetch error:', err));
         }
@@ -405,22 +465,27 @@
         function saveConfig(event) {
             event.preventDefault();
 
+            const numFeedings = parseInt(document.getElementById('numFeedings').value);
             const feedTimes = [];
+            const feedAmounts = [];
             for (let i = 0; i < 4; i++) {
                 const time = document.getElementById('feedTime' + i).value;
                 const [h, m] = time.split(':');
                 feedTimes.push(parseInt(h) * 60 + parseInt(m));
+                feedAmounts.push(parseFloat(document.getElementById('feedAmount' + i).value) || 0);
             }
 
             const config = {
                 bintracIP: document.getElementById('bintracIP').value,
                 bintracDeviceID: parseInt(document.getElementById('bintracDeviceID').value),
+                numFeedings: numFeedings,
+                dailyTotal: parseFloat(document.getElementById('dailyTotal').value),
                 feedTimes: feedTimes,
-                targetWeight: parseFloat(document.getElementById('targetWeight').value),
+                feedAmounts: feedAmounts,
                 chainPreRunTime: parseInt(document.getElementById('chainPreRunTime').value),
                 alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
                 maxRuntime: parseInt(document.getElementById('maxRuntime').value) * 60,
-                fillDetectionThreshold: parseFloat(document.getElementById('fillDetectionThreshold').value),
+                fillDetectionRate: parseFloat(document.getElementById('fillDetectionRate').value),
                 fillSettlingTime: parseInt(document.getElementById('fillSettlingTime').value),
                 timezone: parseInt(document.getElementById('timezone').value),
                 telegramEnabled: document.getElementById('telegramEnabled').checked,

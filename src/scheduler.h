@@ -20,7 +20,7 @@ public:
 
     // Check if it's time to feed
     // Returns true and sets feedCycle (0-3) if a feeding should start
-    bool shouldFeed(const uint16_t feedTimes[4], uint8_t& feedCycle);
+    bool shouldFeed(const uint16_t feedTimes[4], uint8_t numFeedings, uint8_t& feedCycle);
 
     // Mark feeding as completed for this cycle
     void markFeedingComplete(uint8_t feedCycle);

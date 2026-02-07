@@ -12,7 +12,7 @@ public:
     void begin();
 
     // Start feeding cycle
-    void startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionThreshold = 20.0, uint16_t fillSettlingTime = 60);
+    void startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate = 20.0, uint16_t fillSettlingMinutes = 1);
 
     // Stop all immediately
     void stopAll();
@@ -58,7 +58,7 @@ private:
     float _startWeight;
     float _weightDispensed;
     float _alarmThreshold;
-    float _fillDetectionThreshold;
+    float _fillDetectionRate;       // lb/min rate threshold for fill detection
 
     uint16_t _chainPreRunTime;  // How long chain runs alone (seconds)
     uint16_t _maxRuntime;
@@ -89,6 +89,8 @@ private:
     // Bin filling detection and pause state
     FeedingStage _stageBeforePause;
     float _lastWeight;                // Previous weight reading for fill detection
+    float _fillRateWeight;            // Weight at start of rate evaluation window
+    unsigned long _fillRateStartTime; // Timestamp of rate evaluation window start
     float _weightWhenPaused;          // Weight at the moment pause triggered (never changes)
     float _lastWeightDuringPause;     // Last seen weight while monitoring (updates during pause)
     unsigned long _fillStabilizedTime;
