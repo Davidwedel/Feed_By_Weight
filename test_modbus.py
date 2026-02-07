@@ -132,7 +132,7 @@ def main():
     print()
 
     # Continuous connection health check loop
-    connection_flag = 2    
+    connection_flag = 1    
     while connection_flag != 0:
         # First check if the underlying TCP socket is still open
         if not client.is_socket_open():
@@ -169,6 +169,13 @@ def main():
     prev_weights = None
     prev_time = None
 
+    # Exponential moving average smoothing factor.
+    # Lower = smoother (0.1 = heavy smoothing, 1.0 = no smoothing).
+    ema_alpha = 0.3
+
+    # Current smoothed weights (initialized on first reading)
+    smoothed = None
+
     try:
         while True:
             result = client.read_input_registers(ALL_BINS_ADDR - 1, count=8, device_id=DEVICE_ID)
@@ -178,12 +185,22 @@ def main():
                 continue
 
             now = time.time()
-            weights = [
+            reading = [
                 parse_bin_weight(result.registers, 0),
                 parse_bin_weight(result.registers, 2),
                 parse_bin_weight(result.registers, 4),
                 parse_bin_weight(result.registers, 6),
             ]
+
+            if smoothed is None:
+                # First reading - seed the EMA with raw values
+                smoothed = list(reading)
+            else:
+                # Blend new reading into smoothed values
+                for i in range(4):
+                    smoothed[i] = ema_alpha * reading[i] + (1 - ema_alpha) * smoothed[i]
+
+            weights = list(smoothed)
             weights.append(sum(weights))  # Total
             labels = ["A", "B", "C", "D", "Total"]
 
