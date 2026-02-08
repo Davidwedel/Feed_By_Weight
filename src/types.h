@@ -76,7 +76,7 @@ struct FeedEvent {
 };
 
 // Weight log circular buffer
-#define WEIGHT_LOG_SIZE 200
+#define WEIGHT_LOG_SIZE 60
 
 struct WeightLogEntry {
     unsigned long timestamp;  // millis()
