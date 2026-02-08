@@ -24,3 +24,6 @@ Thumbs.db
 credentials.h
 *.pdf
 secrets.h
+
+Weight_Session*.*
+weightsandmeasures.txt

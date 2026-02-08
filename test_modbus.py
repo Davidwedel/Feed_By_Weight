@@ -10,10 +10,27 @@ Usage:
 Requirements: pip install pymodbus
 """
 
+import argparse
 import sys
 import time
+from datetime import datetime
 
 from pymodbus.client import ModbusTcpClient
+
+_log_file = None
+
+
+def ts():
+    """Return current timestamp string for log output."""
+    return datetime.now().strftime("%H:%M:%S")
+
+
+def log(msg=""):
+    """Print to terminal and optionally write to log file."""
+    print(msg)
+    if _log_file:
+        _log_file.write(msg + "\n")
+        _log_file.flush()
 
 # Connection settings for the BinTrac HouseLink HL-10E
 HOST = "192.168.1.173"  # BinTrac IP address on the local network
@@ -84,15 +101,15 @@ def read_registers(client, start_addr, num_registers):
     # Subtract 1 because Modbus protocol addresses are 0-indexed
     protocol_addr = start_addr - 1
 
-    print(f"Reading {num_registers} registers from address {start_addr} (protocol addr: {protocol_addr})")
+    log(f"{ts()} Reading {num_registers} registers from address {start_addr} (protocol addr: {protocol_addr})")
 
     result = client.read_input_registers(protocol_addr, count=num_registers, device_id=DEVICE_ID)
 
     if result.isError():
-        print(f"ERROR: Modbus error - {result}")
+        log(f"{ts()} ERROR: Modbus error - {result}")
         return None
 
-    print(f"Read {len(result.registers)} registers: {result.registers}")
+    log(f"{ts()} Read {len(result.registers)} registers: {result.registers}")
     return result.registers
 
 
@@ -102,11 +119,11 @@ def print_weights(registers):
     bin_b = parse_bin_weight(registers, 2)
     bin_c = parse_bin_weight(registers, 4)
     bin_d = parse_bin_weight(registers, 6)
-    print(f"  Bin A: {bin_a} lbs")
-    print(f"  Bin B: {bin_b} lbs")
-    print(f"  Bin C: {bin_c} lbs")
-    print(f"  Bin D: {bin_d} lbs")
-    print(f"  Total: {bin_a + bin_b + bin_c + bin_d} lbs")
+    log(f"  Bin A: {bin_a} lbs")
+    log(f"  Bin B: {bin_b} lbs")
+    log(f"  Bin C: {bin_c} lbs")
+    log(f"  Bin D: {bin_d} lbs")
+    log(f"  Total: {bin_a + bin_b + bin_c + bin_d} lbs")
 
 
 def main():
@@ -115,56 +132,56 @@ def main():
     does a small Modbus read to verify the device is responding. Automatically
     reconnects if the connection drops.
     """
-    print("=" * 60)
-    print("BinTrac Modbus TCP Test")
-    print("=" * 60)
-    print()
+    log("=" * 60)
+    log("BinTrac Modbus TCP Test")
+    log("=" * 60)
+    log()
 
     # Open TCP connection to the BinTrac
-    print(f"Connecting to {HOST}:{PORT}...")
+    log(f"{ts()} Connecting to {HOST}:{PORT}...")
     client = ModbusTcpClient(HOST, port=PORT, timeout=5)
 
     if not client.connect():
-        print("ERROR: Could not connect to device")
+        log(f"{ts()} ERROR: Could not connect to device")
         sys.exit(1)
 
-    print("Connected!")
-    print()
+    log(f"{ts()} Connected!")
+    log()
 
     # Continuous connection health check loop
     connection_flag = 1    
     while connection_flag != 0:
         # First check if the underlying TCP socket is still open
         if not client.is_socket_open():
-            print("Connection lost! Reconnecting...")
+            log(f"{ts()} Connection lost! Reconnecting...")
             if not client.connect():
-                print("ERROR: Could not reconnect")
+                log(f"{ts()} ERROR: Could not reconnect")
                 time.sleep(5)
                 continue
-            print("Reconnected!")
+            log(f"{ts()} Reconnected!")
 
         # Do a lightweight read (2 registers = 1 bin) to confirm the device
         # is actually responding, not just that the socket is open
         try:
             result = client.read_input_registers(ALL_BINS_ADDR - 1, count=2, device_id=DEVICE_ID)
         except Exception as e:
-            print(f"Connection check failed: {e}")
+            log(f"{ts()} Connection check failed: {e}")
             time.sleep(5)
             continue
 
         if result.isError():
-            print(f"Device not responding: {result}")
+            log(f"{ts()} Device not responding: {result}")
             time.sleep(5)
             continue
 
-        print("Modbus connection OK")
+        log(f"{ts()} Modbus connection OK")
         connection_flag = connection_flag - 1
         time.sleep(5)
 
     # Continuous weight reading loop with change tracking and lb/min rate
-    print("Reading bin weights (Ctrl+C to stop)...")
-    print("   A:    +/-   lb/min |    B:    +/-   lb/min |    C:    +/-   lb/min |    D:    +/-   lb/min | Total:   +/-   lb/min")
-    print("-" * 115)
+    log(f"{ts()} Reading bin weights (Ctrl+C to stop)...")
+    log("    Time |    A:    +/-   lb/min |    B:    +/-   lb/min |    C:    +/-   lb/min |    D:    +/-   lb/min | Total:   +/-   lb/min")
+    log("-" * 126)
 
     prev_weights = None
     prev_time = None
@@ -180,7 +197,7 @@ def main():
         while True:
             result = client.read_input_registers(ALL_BINS_ADDR - 1, count=8, device_id=DEVICE_ID)
             if result.isError():
-                print(f"Read error: {result}")
+                log(f"{ts()} Read error: {result}")
                 time.sleep(3)
                 continue
 
@@ -209,7 +226,7 @@ def main():
                 parts = []
                 for i in range(len(labels)):
                     parts.append(f"{weights[i]:>7.0f}    --      --")
-                print(" | ".join(parts))
+                log(ts() + " | " + " | ".join(parts))
             else:
                 elapsed = now - prev_time
                 parts = []
@@ -217,14 +234,26 @@ def main():
                     change = weights[i] - prev_weights[i]
                     lb_min = change / elapsed * 60
                     parts.append(f"{weights[i]:>7.0f} {change:>+5.0f} {lb_min:>+7.1f}")
-                print(" | ".join(parts))
+                log(ts() + " | " + " | ".join(parts))
 
             prev_weights = weights
             prev_time = now
             time.sleep(3)
     finally:
         client.close()
+        if _log_file:
+            _log_file.close()
+            print(f"Session saved to {_log_file.name}")
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="BinTrac Modbus TCP weight monitor")
+    parser.add_argument("--record", action="store_true", help="Record session to a timestamped file")
+    args = parser.parse_args()
+
+    if args.record:
+        filename = f"Weight_Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        _log_file = open(filename, "w")
+        print(f"Recording to {filename}")
+
     main()
