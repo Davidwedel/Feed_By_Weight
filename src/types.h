@@ -75,6 +75,29 @@ struct FeedEvent {
     char alarmReason[64];
 };
 
+// Weight log circular buffer
+#define WEIGHT_LOG_SIZE 200
+
+struct WeightLogEntry {
+    unsigned long timestamp;  // millis()
+    float weights[4];         // EMA-smoothed bin weights
+    float total;              // sum of smoothed weights
+};
+
+struct WeightLog {
+    WeightLogEntry entries[WEIGHT_LOG_SIZE];
+    int head = 0;      // next write position
+    int count = 0;     // number of valid entries
+
+    void add(unsigned long ts, const float w[4], float total) {
+        entries[head].timestamp = ts;
+        for (int i = 0; i < 4; i++) entries[head].weights[i] = w[i];
+        entries[head].total = total;
+        head = (head + 1) % WEIGHT_LOG_SIZE;
+        if (count < WEIGHT_LOG_SIZE) count++;
+    }
+};
+
 // Real-time status
 struct SystemStatus {
     SystemState state;

@@ -16,9 +16,9 @@ public:
 static ConcreteEthernetServer webServer(WEB_SERVER_PORT);
 
 FeedWebServer::FeedWebServer(Storage& storage, AugerControl& augerControl, BinTrac& bintrac,
-                             Config& config, SystemStatus& status)
+                             Config& config, SystemStatus& status, WeightLog& weightLog)
     : _storage(storage), _augerControl(augerControl), _bintrac(bintrac),
-      _config(config), _status(status), _port(WEB_SERVER_PORT) {
+      _config(config), _status(status), _weightLog(weightLog), _port(WEB_SERVER_PORT) {
 }
 
 void FeedWebServer::begin() {
@@ -99,6 +99,10 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleGetConfig(client);
         } else if (path == "/api/history") {
             handleGetHistory(client);
+        } else if (path == "/weightlog") {
+            handleWeightLogPage(client);
+        } else if (path == "/api/weightlog") {
+            handleGetWeightLog(client);
         } else {
             sendNotFound(client);
         }
@@ -445,6 +449,110 @@ String FeedWebServer::statusToJson() {
     String json;
     serializeJson(doc, json);
     return json;
+}
+
+void FeedWebServer::handleWeightLogPage(EthernetClient& client) {
+    String html = R"rawhtml(<!DOCTYPE html>
+<html><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weight Log</title>
+<style>
+body { background: #1a1a2e; color: #e0e0e0; font-family: monospace; margin: 0; padding: 20px; }
+h1 { color: #ccc; font-size: 1.2em; margin-bottom: 10px; }
+pre { font-size: 13px; line-height: 1.4; white-space: pre; overflow-x: auto; }
+a { color: #4da6ff; text-decoration: none; }
+a:hover { text-decoration: underline; }
+.controls { margin-bottom: 15px; }
+</style>
+</head><body>
+<div class="controls">
+  <a href="/">&larr; Back to Dashboard</a>
+  <span style="margin-left: 20px; color: #666;" id="updateInfo">Updating every 3s...</span>
+</div>
+<h1>Weight Log (EMA smoothed, alpha=0.3)</h1>
+<pre id="log">Loading...</pre>
+<script>
+function update() {
+  fetch('/api/weightlog')
+    .then(r => r.text())
+    .then(t => {
+      const el = document.getElementById('log');
+      el.textContent = t;
+      el.scrollTop = el.scrollHeight;
+    })
+    .catch(e => console.error(e));
+}
+update();
+setInterval(update, 3000);
+</script>
+</body></html>)rawhtml";
+
+    sendResponse(client, 200, "text/html", html);
+}
+
+void FeedWebServer::handleGetWeightLog(EthernetClient& client) {
+    // Stream response line-by-line to avoid large String allocation
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/plain");
+    client.println("Connection: close");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    // Header
+    client.println("    Time |    A:    +/-   lb/min |    B:    +/-   lb/min |    C:    +/-   lb/min |    D:    +/-   lb/min | Total:   +/-   lb/min");
+    client.println("---------+----------------------+----------------------+----------------------+----------------------+----------------------");
+
+    if (_weightLog.count == 0) {
+        client.println("  No data yet");
+        return;
+    }
+
+    // Snapshot time references once
+    unsigned long nowMillis = millis();
+    time_t nowEpoch = time(NULL);
+
+    // Iterate entries in chronological order
+    int start = (_weightLog.count < WEIGHT_LOG_SIZE) ? 0 : _weightLog.head;
+
+    for (int n = 0; n < _weightLog.count; n++) {
+        int idx = (start + n) % WEIGHT_LOG_SIZE;
+        const WeightLogEntry& entry = _weightLog.entries[idx];
+
+        // Convert millis timestamp to HH:MM:SS
+        long millisAgo = (long)(nowMillis - entry.timestamp);
+        time_t entryEpoch = nowEpoch - (millisAgo / 1000);
+        entryEpoch += _config.timezone * 3600L;
+        struct tm ti;
+        gmtime_r(&entryEpoch, &ti);
+
+        char line[256];
+        int pos = 0;
+        pos += snprintf(line + pos, sizeof(line) - pos, "%02d:%02d:%02d |",
+                        ti.tm_hour, ti.tm_min, ti.tm_sec);
+
+        // For each bin + total (5 columns)
+        for (int col = 0; col < 5; col++) {
+            float val = (col < 4) ? entry.weights[col] : entry.total;
+
+            if (n == 0) {
+                pos += snprintf(line + pos, sizeof(line) - pos, " %7.0f    --      -- |", val);
+            } else {
+                int prevIdx = (start + n - 1) % WEIGHT_LOG_SIZE;
+                const WeightLogEntry& prev = _weightLog.entries[prevIdx];
+                float prevVal = (col < 4) ? prev.weights[col] : prev.total;
+                float change = val - prevVal;
+
+                float elapsedSec = (float)(entry.timestamp - prev.timestamp) / 1000.0f;
+                float lbMin = (elapsedSec > 0) ? (change / elapsedSec * 60.0f) : 0;
+
+                pos += snprintf(line + pos, sizeof(line) - pos, " %7.0f %+5.0f %+7.1f |", val, change, lbMin);
+            }
+        }
+
+        client.println(line);
+        client.flush();
+    }
 }
 
 String FeedWebServer::historyToJson() {

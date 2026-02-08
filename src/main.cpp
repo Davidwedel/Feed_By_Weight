@@ -27,6 +27,11 @@ unsigned long lastBintracRead = 0;
 unsigned long lastStatusUpdate = 0;
 bool networkConnected = false;
 
+// EMA smoothing and weight log
+bool emaInitialized = false;
+WeightLog weightLog;
+const float EMA_ALPHA = 0.3;
+
 // Function declarations
 void setupNetwork();
 void updateBinWeights();
@@ -88,7 +93,7 @@ void setup() {
     scheduler.startNTPSync();
 
     // Initialize web server
-    webServer = new FeedWebServer(storage, augerControl, bintrac, config, systemStatus);
+    webServer = new FeedWebServer(storage, augerControl, bintrac, config, systemStatus, weightLog);
     webServer->begin();
 
     // Initialize Telegram bot
@@ -240,11 +245,29 @@ void setupNetwork() {
 }
 
 void updateBinWeights() {
-    if (bintrac.readAllBins(systemStatus.currentWeight)) {
+    float rawWeights[4];
+    if (bintrac.readAllBins(rawWeights)) {
         systemStatus.bintracConnected = true;
         systemStatus.lastBintracUpdate = millis();
 
-        // Debug: print weights every read (1 second)
+        // Apply EMA smoothing
+        if (!emaInitialized) {
+            for (int i = 0; i < 4; i++) {
+                systemStatus.currentWeight[i] = rawWeights[i];
+            }
+            emaInitialized = true;
+        } else {
+            for (int i = 0; i < 4; i++) {
+                systemStatus.currentWeight[i] = EMA_ALPHA * rawWeights[i] + (1.0f - EMA_ALPHA) * systemStatus.currentWeight[i];
+            }
+        }
+
+        // Calculate total and append to weight log
+        float total = 0;
+        for (int i = 0; i < 4; i++) total += systemStatus.currentWeight[i];
+        weightLog.add(millis(), systemStatus.currentWeight, total);
+
+        // Debug: print weights every read
         static int readCount = 0;
         if (++readCount % 1 == 0) {
             Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f\n",

@@ -11,7 +11,7 @@
 class FeedWebServer {
 public:
     FeedWebServer(Storage& storage, AugerControl& augerControl, BinTrac& bintrac,
-                  Config& config, SystemStatus& status);
+                  Config& config, SystemStatus& status, WeightLog& weightLog);
 
     // Initialize web server
     void begin();
@@ -26,6 +26,7 @@ private:
     BinTrac& _bintrac;
     Config& _config;
     SystemStatus& _status;
+    WeightLog& _weightLog;
 
     // HTTP request handling
     void handleRequest(EthernetClient& client);
@@ -43,6 +44,8 @@ private:
     void handleManualControl(EthernetClient& client, const String& body);
     void handleStartFeed(EthernetClient& client);
     void handleStopFeed(EthernetClient& client);
+    void handleWeightLogPage(EthernetClient& client);
+    void handleGetWeightLog(EthernetClient& client);
 
     // Utility functions
     String configToJson();

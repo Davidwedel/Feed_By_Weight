@@ -122,6 +122,16 @@ bool Storage::saveConfig(const Config& config) {
 bool Storage::addFeedEvent(const FeedEvent& event) {
     if (!_initialized) return false;
 
+    // Create file if it doesn't exist
+    if (!LittleFS.exists(HISTORY_FILE)) {
+        File create = LittleFS.open(HISTORY_FILE, "w");
+        if (!create) {
+            Serial.println("Failed to create history file");
+            return false;
+        }
+        create.close();
+    }
+
     // Append to CSV file
     File file = LittleFS.open(HISTORY_FILE, "a");
     if (!file) {
