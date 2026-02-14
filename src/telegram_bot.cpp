@@ -2,8 +2,7 @@
 #include "config.h"
 #include <time.h>
 
-TelegramBot::TelegramBot(Config& config) : _config(config),
-    _client(_ethClient, nullptr, 0, A0)  // SSLClient with insecure mode
+TelegramBot::TelegramBot(Config& config) : _config(config)
 {
     _bot = nullptr;
     _initialized = false;
@@ -18,16 +17,14 @@ bool TelegramBot::begin() {
         return false;
     }
 
-    Serial.println("Initializing Telegram bot over Ethernet...");
-    // Note: Using nullptr trust anchors = no certificate validation (insecure)
-    // For production, add proper Telegram API certificates
+    Serial.println("Initializing Telegram bot over WiFi...");
+    _client.setInsecure();
 
-    // Initialize Telegram bot with SSL client
     _bot = new UniversalTelegramBot(_config.telegramToken, _client);
 
     _initialized = true;
-    Serial.println("Telegram bot initialized (SSL over Ethernet)");
-    sendMessage("🤖 Weight Feeder System Online (Ethernet)");
+    Serial.println("Telegram bot initialized (WiFiClientSecure)");
+    sendMessage("🤖 Weight Feeder System Online");
 
     return true;
 }

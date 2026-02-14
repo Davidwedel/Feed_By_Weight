@@ -59,6 +59,10 @@ struct Config {
     char telegramAllowedUsers[200] = "";  // Comma-separated usernames
     bool telegramEnabled = false;
 
+    // WiFi settings (used for Telegram SSL only)
+    char wifiSSID[33] = "";
+    char wifiPassword[65] = "";
+
     // System settings
     bool autoFeedEnabled = true;
     int8_t timezone = 0;  // UTC offset in hours (-12 to +12)

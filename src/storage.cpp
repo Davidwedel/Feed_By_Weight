@@ -60,6 +60,10 @@ bool Storage::loadConfig(Config& config) {
     strlcpy(config.telegramAllowedUsers, prefs.getString("tgAllowed", "").c_str(), sizeof(config.telegramAllowedUsers));
     config.telegramEnabled = prefs.getBool("tgEnabled", false);
 
+    // WiFi (for Telegram SSL)
+    strlcpy(config.wifiSSID, prefs.getString("wifiSSID", "").c_str(), sizeof(config.wifiSSID));
+    strlcpy(config.wifiPassword, prefs.getString("wifiPass", "").c_str(), sizeof(config.wifiPassword));
+
     // System
     config.autoFeedEnabled = prefs.getBool("autoFeed", true);
     config.timezone = prefs.getChar("timezone", 0);
@@ -106,6 +110,10 @@ bool Storage::saveConfig(const Config& config) {
     prefs.putString("tgChatID", config.telegramChatID);
     prefs.putString("tgAllowed", config.telegramAllowedUsers);
     prefs.putBool("tgEnabled", config.telegramEnabled);
+
+    // WiFi (for Telegram SSL)
+    prefs.putString("wifiSSID", config.wifiSSID);
+    prefs.putString("wifiPass", config.wifiPassword);
 
     // System
     prefs.putBool("autoFeed", config.autoFeedEnabled);

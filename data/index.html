@@ -330,12 +330,23 @@
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">Telegram Bot</h3>
+                <small style="color: #666; font-size: 0.9em;">Telegram uses WiFi for SSL. Configure WiFi credentials below.</small>
 
                 <div class="form-group">
                     <label style="display: flex; align-items: center; cursor: pointer;">
                         <input type="checkbox" id="telegramEnabled" style="margin-right: 10px; width: auto;">
                         <span>Enable Telegram Notifications</span>
                     </label>
+                </div>
+
+                <div class="form-group">
+                    <label>WiFi SSID</label>
+                    <input type="text" id="wifiSSID" placeholder="Your WiFi network name">
+                </div>
+
+                <div class="form-group">
+                    <label>WiFi Password</label>
+                    <input type="password" id="wifiPassword" placeholder="WiFi password">
                 </div>
 
                 <div class="form-group">
@@ -500,6 +511,8 @@
                     document.getElementById('fillSettlingTime').value = data.fillSettlingTime;
                     document.getElementById('timezone').value = data.timezone;
                     document.getElementById('telegramEnabled').checked = data.telegramEnabled;
+                    document.getElementById('wifiSSID').value = data.wifiSSID;
+                    document.getElementById('wifiPassword').value = data.wifiPassword;
                     document.getElementById('telegramToken').value = data.telegramToken;
                     document.getElementById('telegramChatID').value = data.telegramChatID;
                     document.getElementById('telegramAllowedUsers').value = data.telegramAllowedUsers;
@@ -547,6 +560,8 @@
                 fillSettlingTime: parseInt(document.getElementById('fillSettlingTime').value),
                 timezone: parseInt(document.getElementById('timezone').value),
                 telegramEnabled: document.getElementById('telegramEnabled').checked,
+                wifiSSID: document.getElementById('wifiSSID').value,
+                wifiPassword: document.getElementById('wifiPassword').value,
                 telegramToken: document.getElementById('telegramToken').value,
                 telegramChatID: document.getElementById('telegramChatID').value,
                 telegramAllowedUsers: document.getElementById('telegramAllowedUsers').value

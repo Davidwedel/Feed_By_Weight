@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <WiFi.h>
 #include "config.h"
 #include "types.h"
 #include "storage.h"
@@ -96,9 +97,26 @@ void setup() {
     webServer = new FeedWebServer(storage, augerControl, bintrac, config, systemStatus, weightLog);
     webServer->begin();
 
+    // Initialize WiFi for Telegram SSL (runs alongside Ethernet)
+    if (config.telegramEnabled && strlen(config.wifiSSID) > 0) {
+        Serial.printf("Connecting WiFi to '%s' for Telegram...\n", config.wifiSSID);
+        WiFi.mode(WIFI_STA);
+        WiFi.begin(config.wifiSSID, config.wifiPassword);
+        unsigned long wifiStart = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - wifiStart < 10000) {
+            delay(250);
+            Serial.print(".");
+        }
+        if (WiFi.status() == WL_CONNECTED) {
+            Serial.printf("\nWiFi connected: %s\n", WiFi.localIP().toString().c_str());
+        } else {
+            Serial.println("\nWiFi connection failed - Telegram bot will not work");
+        }
+    }
+
     // Initialize Telegram bot
     telegramBot = new TelegramBot(config);
-    if (config.telegramEnabled) {
+    if (config.telegramEnabled && WiFi.status() == WL_CONNECTED) {
         telegramBot->begin();
     }
 

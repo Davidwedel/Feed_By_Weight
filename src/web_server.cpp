@@ -270,6 +270,12 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
         _config.telegramEnabled = doc["telegramEnabled"];
         Serial.printf("Set telegramEnabled = %d\n", _config.telegramEnabled);
     }
+    if (doc["wifiSSID"].is<const char*>()) {
+        strlcpy(_config.wifiSSID, doc["wifiSSID"], sizeof(_config.wifiSSID));
+    }
+    if (doc["wifiPassword"].is<const char*>()) {
+        strlcpy(_config.wifiPassword, doc["wifiPassword"], sizeof(_config.wifiPassword));
+    }
     if (doc["autoFeedEnabled"].is<bool>()) {
         _config.autoFeedEnabled = doc["autoFeedEnabled"];
     }
@@ -416,6 +422,8 @@ String FeedWebServer::configToJson() {
     doc["telegramChatID"] = _config.telegramChatID;
     doc["telegramAllowedUsers"] = _config.telegramAllowedUsers;
     doc["telegramEnabled"] = _config.telegramEnabled;
+    doc["wifiSSID"] = _config.wifiSSID;
+    doc["wifiPassword"] = _config.wifiPassword;
     doc["autoFeedEnabled"] = _config.autoFeedEnabled;
     doc["timezone"] = _config.timezone;
 
