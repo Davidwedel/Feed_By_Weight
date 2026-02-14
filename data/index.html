@@ -182,6 +182,10 @@
                     <label>Network</label>
                     <div class="value" id="networkStatus">-</div>
                 </div>
+                <div class="status-item">
+                    <label>Current Time</label>
+                    <div class="value" id="currentTime">-</div>
+                </div>
             </div>
 
             <h3 style="margin-top: 20px; margin-bottom: 10px;">Bin Weights</h3>
@@ -456,6 +460,7 @@
 
                     document.getElementById('weightDispensed').textContent = data.weightDispensed.toFixed(2) + ' lbs';
                     document.getElementById('flowRate').textContent = data.flowRate.toFixed(2) + ' lbs/min';
+                    document.getElementById('currentTime').textContent = data.currentTime || '-';
                 })
                 .catch(err => console.error('Status fetch error:', err));
         }

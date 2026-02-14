@@ -443,6 +443,7 @@ String FeedWebServer::statusToJson() {
     doc["chainRunning"] = _status.chainRunning;
     doc["bintracConnected"] = _status.bintracConnected;
     doc["networkConnected"] = _status.networkConnected;
+    doc["currentTime"] = _status.currentTime;
     doc["lastError"] = _status.lastError;
     doc["lastBintracUpdate"] = _status.lastBintracUpdate;
 

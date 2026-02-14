@@ -111,6 +111,7 @@ struct SystemStatus {
     bool chainRunning;
     bool bintracConnected;
     bool networkConnected;
+    char currentTime[32];
     char lastError[128];
     unsigned long lastBintracUpdate;
 };

@@ -123,6 +123,7 @@ void setup() {
 void loop() {
     // Update scheduler time
     scheduler.update();
+    scheduler.getCurrentTimeStr(systemStatus.currentTime, sizeof(systemStatus.currentTime));
 
     // Update Telegram bot
     if (config.telegramEnabled) {
