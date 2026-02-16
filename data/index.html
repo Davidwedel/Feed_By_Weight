@@ -393,23 +393,23 @@
 
         <!-- Weight Log Link -->
         <div class="card" style="text-align: center;">
-            <a href="/weightlog">
+            <a href="weightlog">
                 <button type="button" style="font-size: 1.1em; padding: 15px 40px;">View Weight Log</button>
             </a>
         </div>
     </div>
 
     <script>
-        const API_BASE = '';
+        const API_BASE = window.location.pathname.replace(/\/[^/]*$/, '');
 
         // Auto-refresh status
-        setInterval(loadStatus, 1000);
+        setInterval(loadStatus, 3000);
         setInterval(loadConfig, 30000);
 
-        // Initial load
+        // Initial load — stagger to avoid overwhelming single-connection server
         loadStatus();
-        loadConfig();
-        loadHistory();
+        setTimeout(loadConfig, 500);
+        setTimeout(loadHistory, 1000);
 
         function updateFeedingRows() {
             const numFeedings = parseInt(document.getElementById('numFeedings').value);

@@ -178,17 +178,16 @@ void FeedWebServer::handleRoot(EthernetClient& client) {
     client.println("Connection: close");
     client.print("Content-Length: ");
     client.println(fileSize);
+    client.println("Cache-Control: public, max-age=3600");
     client.println("Access-Control-Allow-Origin: *");
     client.println();
 
     // Send file in chunks
-    const size_t chunkSize = 512;
+    const size_t chunkSize = 1460;  // One TCP segment
     uint8_t buffer[chunkSize];
     while (file.available()) {
         size_t bytesRead = file.read(buffer, chunkSize);
         client.write(buffer, bytesRead);
-        client.flush();  // Ensure data is sent
-        delay(1);  // Small delay to prevent buffer overflow
     }
 
     file.close();
@@ -476,14 +475,14 @@ a:hover { text-decoration: underline; }
 </style>
 </head><body>
 <div class="controls">
-  <a href="/">&larr; Back to Dashboard</a>
+  <a href="./">&larr; Back to Dashboard</a>
   <span style="margin-left: 20px; color: #666;" id="updateInfo">Updating every 3s...</span>
 </div>
 <h1>Weight Log (EMA smoothed, alpha=0.3)</h1>
 <pre id="log">Loading...</pre>
 <script>
 function update() {
-  fetch('/api/weightlog')
+  fetch('api/weightlog')
     .then(r => r.text())
     .then(t => {
       const el = document.getElementById('log');
