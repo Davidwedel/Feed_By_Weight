@@ -322,6 +322,12 @@
                     <small style="color: #666; font-size: 0.9em;">Wait this long after bin filling stops before resuming</small>
                 </div>
 
+                <div class="form-group">
+                    <label>Fluctuation Threshold (lbs)</label>
+                    <input type="number" id="weightFluctuationThreshold" step="0.1" min="0" placeholder="2.0">
+                    <small style="color: #666; font-size: 0.9em;">Ignore weight changes smaller than this amount</small>
+                </div>
+
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">System Settings</h3>
 
                 <div class="form-group">
@@ -509,6 +515,7 @@
                     document.getElementById('maxRuntime').value = Math.round(data.maxRuntime / 60);
                     document.getElementById('fillDetectionRate').value = data.fillDetectionRate;
                     document.getElementById('fillSettlingTime').value = data.fillSettlingTime;
+                    document.getElementById('weightFluctuationThreshold').value = data.weightFluctuationThreshold;
                     document.getElementById('timezone').value = data.timezone;
                     document.getElementById('telegramEnabled').checked = data.telegramEnabled;
                     document.getElementById('wifiSSID').value = data.wifiSSID;
@@ -558,6 +565,7 @@
                 maxRuntime: parseInt(document.getElementById('maxRuntime').value) * 60,
                 fillDetectionRate: parseFloat(document.getElementById('fillDetectionRate').value),
                 fillSettlingTime: parseInt(document.getElementById('fillSettlingTime').value),
+                weightFluctuationThreshold: parseFloat(document.getElementById('weightFluctuationThreshold').value),
                 timezone: parseInt(document.getElementById('timezone').value),
                 telegramEnabled: document.getElementById('telegramEnabled').checked,
                 wifiSSID: document.getElementById('wifiSSID').value,

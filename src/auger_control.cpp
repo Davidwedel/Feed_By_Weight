@@ -18,6 +18,7 @@ AugerControl::AugerControl() {
     _fillSettlingTime = 60;
     _alarmThreshold = 10.0;
     _fillDetectionRate = 20.0;
+    _fluctuationThreshold = 2.0;
     _fillRateWeight = 0;
     _fillRateStartTime = 0;
     _weightAtMinuteStart = 0;
@@ -53,7 +54,7 @@ void AugerControl::begin() {
     Serial.println("Auger and chain control initialized");
 }
 
-void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate, uint16_t fillSettlingMinutes) {
+void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate, uint16_t fillSettlingMinutes, float fluctuationThreshold) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
@@ -63,6 +64,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
     _fillDetectionRate = fillDetectionRate;
+    _fluctuationThreshold = fluctuationThreshold;
     _fillSettlingTime = fillSettlingMinutes * 60;  // convert minutes to seconds internally
     _feedStartTime = millis();
     _chainStartTime = millis();
@@ -222,7 +224,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
         case FeedingStage::PAUSED_FOR_FILL:
             // Monitor weight to detect when filling stops
-            if (currentTotalWeight > _lastWeightDuringPause + 1.0) {
+            if (currentTotalWeight > _lastWeightDuringPause + _fluctuationThreshold) {
                 // Weight still increasing - reset stabilization timer
                 _lastWeightDuringPause = currentTotalWeight;  // Update tracking weight
                 _fillStabilizedTime = 0;
@@ -294,12 +296,12 @@ void AugerControl::checkSafety(float currentWeight) {
     unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
 
     // Check: no weight change after 30 seconds
-    if (elapsed > 30 && _weightDispensed < MIN_WEIGHT_CHANGE) {
+    if (elapsed > 30 && _weightDispensed < _fluctuationThreshold) {
         if (!_warnedNoChange) {
             sendWarning("⚠️ No weight change detected - bin may be empty or jammed");
             _warnedNoChange = true;
         }
-    } else if (_warnedNoChange && _weightDispensed >= MIN_WEIGHT_CHANGE) {
+    } else if (_warnedNoChange && _weightDispensed >= _fluctuationThreshold) {
         // Weight started changing
         sendWarning("✅ Weight dispensing resumed");
         _warnedNoChange = false;

@@ -152,6 +152,13 @@ void loop() {
             String chatId = telegramBot->getStatusRequestChatId();
             telegramBot->sendStatus(systemStatus, chatId);
         }
+
+        // Stop feeding if /disable was issued
+        if (telegramBot->isStopRequested() && augerControl.isFeeding()) {
+            augerControl.stopAll();
+            systemStatus.state = SystemState::IDLE;
+            Serial.println("Feeding stopped via Telegram /disable");
+        }
     }
 
     // Handle web server requests
@@ -340,7 +347,7 @@ void runStateMachine() {
                     currentFeedTarget = calculateFeedTarget(currentFeedCycle);
 
                     // Start feeding
-                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillDetectionRate, config.fillSettlingTime);
+                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillDetectionRate, config.fillSettlingTime, config.weightFluctuationThreshold);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 

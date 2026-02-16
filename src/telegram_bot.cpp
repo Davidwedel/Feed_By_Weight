@@ -8,6 +8,7 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _initialized = false;
     _lastUpdateTime = 0;
     _statusRequested = false;
+    _stopRequested = false;
     _statusRequestChatId = "";
 }
 
@@ -120,6 +121,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
 
     snprintf(message, sizeof(message),
              "📈 *System Status*\n\n"
+             "Schedule: %s\n"
              "State: %s\n"
              "Stage: %s\n"
              "Bin Weights:\n"
@@ -131,6 +133,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
              "Chain: %s\n"
              "BinTrac: %s\n"
              "Network: %s",
+             _config.autoFeedEnabled ? "Enabled" : "Disabled",
              stateStr[(int)status.state],
              stageStr[(int)status.feedingStage],
              status.currentWeight[0],
@@ -221,7 +224,8 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         }
         else if (text == "/disable") {
             _config.autoFeedEnabled = false;
-            _bot->sendMessage(chat_id, "✋ Auto-feeding disabled", "");
+            _stopRequested = true;
+            _bot->sendMessage(chat_id, "✋ Auto-feeding disabled - stopping any active feeding", "");
         }
         else if (text == "/enable") {
             _config.autoFeedEnabled = true;

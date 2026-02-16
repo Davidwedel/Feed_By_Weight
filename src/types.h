@@ -53,6 +53,9 @@ struct Config {
     float fillDetectionRate = 20.0;   // lb/min increase rate to trigger fill pause
     uint16_t fillSettlingTime = 1;    // minutes to wait after filling stops
 
+    // Weight fluctuation threshold
+    float weightFluctuationThreshold = 2.0;  // lbs - ignore weight changes smaller than this
+
     // Telegram settings
     char telegramToken[50] = "";
     char telegramChatID[20] = "";

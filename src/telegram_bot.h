@@ -39,6 +39,9 @@ public:
     bool isStatusRequested() { return _statusRequested; }
     String getStatusRequestChatId() { _statusRequested = false; return _statusRequestChatId; }
 
+    // Check if stop was requested (via /disable)
+    bool isStopRequested() { bool r = _stopRequested; _stopRequested = false; return r; }
+
 private:
     Config& _config;
     WiFiClientSecure _client;
@@ -46,6 +49,7 @@ private:
     unsigned long _lastUpdateTime;
     bool _initialized;
     bool _statusRequested;
+    bool _stopRequested;
     String _statusRequestChatId;
 
     // Handle incoming commands

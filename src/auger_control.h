@@ -12,7 +12,7 @@ public:
     void begin();
 
     // Start feeding cycle
-    void startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate = 20.0, uint16_t fillSettlingMinutes = 1);
+    void startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate = 20.0, uint16_t fillSettlingMinutes = 1, float fluctuationThreshold = 2.0);
 
     // Stop all immediately
     void stopAll();
@@ -59,6 +59,7 @@ private:
     float _weightDispensed;
     float _alarmThreshold;
     float _fillDetectionRate;       // lb/min rate threshold for fill detection
+    float _fluctuationThreshold;    // lbs - ignore weight changes smaller than this
 
     uint16_t _chainPreRunTime;  // How long chain runs alone (seconds)
     uint16_t _maxRuntime;
