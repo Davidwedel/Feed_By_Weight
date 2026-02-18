@@ -47,6 +47,8 @@ private:
     void handleClearAlarm(EthernetClient& client);
     void handleWeightLogPage(EthernetClient& client);
     void handleGetWeightLog(EthernetClient& client);
+    void handleBackupHistory(EthernetClient& client);
+    void handleRestoreHistory(EthernetClient& client, const String& body);
 
     // Utility functions
     String configToJson();

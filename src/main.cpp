@@ -26,6 +26,7 @@ uint8_t currentFeedCycle = 0;
 float currentFeedTarget = 0;  // target weight for current feeding (captured at start)
 unsigned long lastBintracRead = 0;
 unsigned long lastStatusUpdate = 0;
+unsigned long lastProgressSave = 0;
 bool networkConnected = false;
 
 // EMA smoothing and weight log
@@ -69,6 +70,30 @@ void setup() {
     // Load configuration
     if (!storage.loadConfig(config)) {
         Serial.println("Using default configuration");
+    }
+
+    // Check for interrupted feed from previous boot
+    {
+        float pfStartWt, pfDispensed, pfTarget;
+        uint8_t pfCycle;
+        unsigned long pfTimestamp;
+        if (storage.loadFeedProgress(pfStartWt, pfDispensed, pfTarget, pfCycle, pfTimestamp)) {
+            Serial.printf("Recovered interrupted feed: cycle=%d, dispensed=%.2f/%.2f lbs\n",
+                         pfCycle + 1, pfDispensed, pfTarget);
+
+            FeedEvent event;
+            event.timestamp = pfTimestamp;
+            event.feedCycle = pfCycle;
+            event.targetWeight = pfTarget;
+            event.actualWeight = pfDispensed;
+            event.duration = 0;
+            event.alarmTriggered = true;
+            strcpy(event.alarmReason, "Interrupted by reboot");
+
+            storage.addFeedEvent(event);
+            storage.clearFeedProgress();
+            Serial.println("Partial feed event logged to history");
+        }
     }
 
     // Initialize Network
@@ -358,6 +383,11 @@ void runStateMachine() {
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 
+                    // Save initial feed progress to NVS
+                    unsigned long ts = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
+                    storage.saveFeedProgress(systemStatus.weightAtStart, 0, currentFeedTarget, currentFeedCycle, ts);
+                    lastProgressSave = millis();
+
                     // Mark as started (will be marked complete when done)
                     // scheduler.markFeedingComplete is called after successful completion
                 }
@@ -378,6 +408,14 @@ void runStateMachine() {
             if (warning != nullptr && config.telegramEnabled) {
                 String msg = String("🔔 Feed Cycle ") + String(currentFeedCycle + 1) + "\n" + String(warning);
                 telegramBot->sendMessage(msg);
+            }
+
+            // Save feed progress to NVS every 60 seconds
+            if (millis() - lastProgressSave >= 60000) {
+                unsigned long ts = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
+                storage.saveFeedProgress(systemStatus.weightAtStart, augerControl.getWeightDispensed(),
+                                        currentFeedTarget, currentFeedCycle, ts);
+                lastProgressSave = millis();
             }
 
             if (stage == FeedingStage::COMPLETED) {
@@ -420,8 +458,9 @@ void handleFeedingComplete() {
     event.alarmTriggered = false;
     strcpy(event.alarmReason, "");
 
-    // Save to history
+    // Save to history and clear NVS progress
     storage.addFeedEvent(event);
+    storage.clearFeedProgress();
 
     if (!scheduler.isTimeSynced()) {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");
@@ -457,8 +496,9 @@ void handleFeedingFailed() {
     event.alarmTriggered = true;
     strncpy(event.alarmReason, augerControl.getAlarmReason(), sizeof(event.alarmReason) - 1);
 
-    // Save to history
+    // Save to history and clear NVS progress
     storage.addFeedEvent(event);
+    storage.clearFeedProgress();
 
     if (!scheduler.isTimeSynced()) {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");

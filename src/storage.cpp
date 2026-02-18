@@ -233,6 +233,20 @@ bool Storage::getFeedHistory(FeedEvent* events, int& count, int maxCount) {
     return true;
 }
 
+bool Storage::writeRawHistory(const String& csvData) {
+    if (!_initialized) return false;
+
+    File file = LittleFS.open(HISTORY_FILE, "w");
+    if (!file) {
+        Serial.println("Failed to open history file for writing");
+        return false;
+    }
+
+    file.print(csvData);
+    file.close();
+    return true;
+}
+
 bool Storage::clearHistory() {
     if (!_initialized) return false;
 
@@ -240,6 +254,40 @@ bool Storage::clearHistory() {
         return LittleFS.remove(HISTORY_FILE);
     }
     return true;
+}
+
+void Storage::saveFeedProgress(float startWeight, float dispensed, float target, uint8_t cycle, unsigned long timestamp) {
+    Preferences fp;
+    fp.begin("feedprog", false);
+    fp.putBool("pfActive", true);
+    fp.putFloat("pfStartWt", startWeight);
+    fp.putFloat("pfDispensed", dispensed);
+    fp.putFloat("pfTargetWt", target);
+    fp.putUChar("pfCycle", cycle);
+    fp.putULong("pfTimestamp", timestamp);
+    fp.end();
+}
+
+bool Storage::loadFeedProgress(float& startWeight, float& dispensed, float& target, uint8_t& cycle, unsigned long& timestamp) {
+    Preferences fp;
+    fp.begin("feedprog", true);
+    bool active = fp.getBool("pfActive", false);
+    if (active) {
+        startWeight = fp.getFloat("pfStartWt", 0);
+        dispensed = fp.getFloat("pfDispensed", 0);
+        target = fp.getFloat("pfTargetWt", 0);
+        cycle = fp.getUChar("pfCycle", 0);
+        timestamp = fp.getULong("pfTimestamp", 0);
+    }
+    fp.end();
+    return active;
+}
+
+void Storage::clearFeedProgress() {
+    Preferences fp;
+    fp.begin("feedprog", false);
+    fp.clear();
+    fp.end();
 }
 
 bool Storage::formatFilesystem() {

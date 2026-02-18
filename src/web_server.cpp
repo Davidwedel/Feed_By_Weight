@@ -103,6 +103,8 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleWeightLogPage(client);
         } else if (path == "/api/weightlog") {
             handleGetWeightLog(client);
+        } else if (path == "/api/history/backup") {
+            handleBackupHistory(client);
         } else {
             sendNotFound(client);
         }
@@ -117,6 +119,8 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleStopFeed(client);
         } else if (path == "/api/alarm/clear") {
             handleClearAlarm(client);
+        } else if (path == "/api/history/restore") {
+            handleRestoreHistory(client, body);
         } else {
             sendNotFound(client);
         }
@@ -577,6 +581,52 @@ void FeedWebServer::handleGetWeightLog(EthernetClient& client) {
 
         client.println(line);
         client.flush();
+    }
+}
+
+void FeedWebServer::handleBackupHistory(EthernetClient& client) {
+    if (!LittleFS.exists(HISTORY_FILE)) {
+        sendResponse(client, 200, "text/csv", "");
+        return;
+    }
+
+    File file = LittleFS.open(HISTORY_FILE, "r");
+    if (!file) {
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to open history file\"}");
+        return;
+    }
+
+    size_t fileSize = file.size();
+
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/csv");
+    client.println("Connection: close");
+    client.print("Content-Length: ");
+    client.println(fileSize);
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    const size_t chunkSize = 1460;
+    uint8_t buffer[chunkSize];
+    while (file.available()) {
+        size_t bytesRead = file.read(buffer, chunkSize);
+        client.write(buffer, bytesRead);
+    }
+
+    file.close();
+}
+
+void FeedWebServer::handleRestoreHistory(EthernetClient& client, const String& body) {
+    if (body.length() == 0) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Empty body\"}");
+        return;
+    }
+
+    if (_storage.writeRawHistory(body)) {
+        Serial.printf("History restored: %d bytes\n", body.length());
+        sendJsonResponse(client, "{\"success\":true}");
+    } else {
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to write history\"}");
     }
 }
 
