@@ -42,6 +42,9 @@ public:
     // Check if stop was requested (via /disable)
     bool isStopRequested() { bool r = _stopRequested; _stopRequested = false; return r; }
 
+    // Check if alarm clear was requested (via /clearalarm)
+    bool isClearAlarmRequested() { bool r = _clearAlarmRequested; _clearAlarmRequested = false; return r; }
+
 private:
     Config& _config;
     WiFiClientSecure _client;
@@ -50,6 +53,7 @@ private:
     bool _initialized;
     bool _statusRequested;
     bool _stopRequested;
+    bool _clearAlarmRequested;
     String _statusRequestChatId;
 
     // Handle incoming commands

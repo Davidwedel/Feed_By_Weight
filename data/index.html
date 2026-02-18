@@ -242,6 +242,7 @@
                 <button onclick="manualControl('chain_off')" class="danger">Chain OFF</button>
                 <button onclick="startFeed()" style="background:#17a2b8">Start Feed Now</button>
                 <button onclick="stopFeed()" class="danger">STOP ALL</button>
+                <button id="clearAlarmBtn" onclick="clearAlarm()" class="danger" style="display:none;background:#ff8c00">CLEAR ALARM</button>
             </div>
         </div>
 
@@ -462,6 +463,7 @@
                     const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
+                    document.getElementById('clearAlarmBtn').style.display = data.state === 3 ? 'inline-block' : 'none';
                     document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
 
                     document.getElementById('bintracStatus').textContent = data.bintracConnected ? 'Connected' : 'Disconnected';
@@ -616,6 +618,15 @@
                     .then(r => r.json())
                     .then(() => loadStatus())
                     .catch(err => console.error('Stop error:', err));
+            }
+        }
+
+        function clearAlarm() {
+            if (confirm('Acknowledge and clear alarm?')) {
+                fetch(API_BASE + '/api/alarm/clear', {method: 'POST'})
+                    .then(r => r.json())
+                    .then(() => loadStatus())
+                    .catch(err => console.error('Clear alarm error:', err));
             }
         }
 

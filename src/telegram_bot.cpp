@@ -9,6 +9,7 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _lastUpdateTime = 0;
     _statusRequested = false;
     _stopRequested = false;
+    _clearAlarmRequested = false;
     _statusRequestChatId = "";
 }
 
@@ -215,7 +216,8 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "Available commands:\n"
                        "/status - System status\n"
                        "/disable - Disable auto-feeding\n"
-                       "/enable - Enable auto-feeding", "");
+                       "/enable - Enable auto-feeding\n"
+                       "/clearalarm - Clear alarm state", "");
         }
         else if (text == "/status") {
             // Trigger status request
@@ -230,6 +232,10 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         else if (text == "/enable") {
             _config.autoFeedEnabled = true;
             _bot->sendMessage(chat_id, "✅ Auto-feeding enabled", "");
+        }
+        else if (text == "/clearalarm") {
+            _clearAlarmRequested = true;
+            _bot->sendMessage(chat_id, "🔕 Alarm cleared", "");
         }
         else {
             _bot->sendMessage(chat_id, "❓ Unknown command. Send /start for help.", "");

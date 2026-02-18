@@ -115,6 +115,8 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleStartFeed(client);
         } else if (path == "/api/feed/stop") {
             handleStopFeed(client);
+        } else if (path == "/api/alarm/clear") {
+            handleClearAlarm(client);
         } else {
             sendNotFound(client);
         }
@@ -394,6 +396,17 @@ void FeedWebServer::handleStopFeed(EthernetClient& client) {
     }
 
     _augerControl.stopAll();
+    sendJsonResponse(client, "{\"success\":true}");
+}
+
+void FeedWebServer::handleClearAlarm(EthernetClient& client) {
+    if (_status.state != SystemState::ALARM) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Not in alarm state\"}");
+        return;
+    }
+    _status.state = SystemState::IDLE;
+    strcpy(_status.lastError, "");
+    Serial.println("Alarm cleared via web interface");
     sendJsonResponse(client, "{\"success\":true}");
 }
 

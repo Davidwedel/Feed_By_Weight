@@ -159,6 +159,13 @@ void loop() {
             systemStatus.state = SystemState::IDLE;
             Serial.println("Feeding stopped via Telegram /disable");
         }
+
+        // Clear alarm if /clearalarm was issued
+        if (telegramBot->isClearAlarmRequested() && systemStatus.state == SystemState::ALARM) {
+            systemStatus.state = SystemState::IDLE;
+            strcpy(systemStatus.lastError, "");
+            Serial.println("Alarm cleared via Telegram /clearalarm");
+        }
     }
 
     // Handle web server requests
