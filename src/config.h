@@ -13,7 +13,7 @@
 #define RELAY_3_PIN 13 // K3 - Chain B
 #define RELAY_4_PIN 12 // K4 - Chain C
 #define RELAY_5_PIN 21 // K5 - Chain D
-#define RELAY_6_PIN 19 // K6
+#define RELAY_6_PIN 19 // K6 - Auger 2
 #define RELAY_7_PIN 18 // K7
 #define RELAY_8_PIN 5  // K8
 

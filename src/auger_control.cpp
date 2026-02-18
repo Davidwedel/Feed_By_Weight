@@ -47,6 +47,7 @@ void AugerControl::begin() {
     pinMode(RELAY_3_PIN, OUTPUT);
     pinMode(RELAY_4_PIN, OUTPUT);
     pinMode(RELAY_5_PIN, OUTPUT);
+    pinMode(RELAY_6_PIN, OUTPUT);
 
     // Ensure all relays are OFF at startup
     stopAll();
@@ -366,8 +367,9 @@ void AugerControl::setChain(bool state) {
 
 void AugerControl::controlAuger(bool state) {
     digitalWrite(RELAY_1_PIN, state ? HIGH : LOW);
+    digitalWrite(RELAY_6_PIN, state ? HIGH : LOW);
     _augerRunning = state;
-    Serial.printf("GPIO %d (Auger): %s\n", RELAY_1_PIN, state ? "ON (HIGH)" : "OFF (LOW)");
+    Serial.printf("GPIOs %d,%d (Augers): %s\n", RELAY_1_PIN, RELAY_6_PIN, state ? "ON (HIGH)" : "OFF (LOW)");
 }
 
 void AugerControl::controlChain(bool state) {
