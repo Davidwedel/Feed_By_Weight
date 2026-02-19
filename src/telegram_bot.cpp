@@ -73,11 +73,11 @@ void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t 
              "✅ *Feeding Complete*\n\n"
              "Cycle: %d\n"
              "Dispensed: %.2f lbs\n"
-             "Duration: %d seconds\n"
+             "Duration: %d:%02d\n"
              "Total Dispensed Today: %.2f lbs",
              feedCycle + 1,
              weight,
-             duration,
+             duration / 60, duration % 60,
              totalDispensedToday);
 
     sendMessage(message);

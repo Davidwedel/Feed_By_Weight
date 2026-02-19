@@ -524,7 +524,7 @@ void handleFeedingComplete() {
     // Return to idle state
     systemStatus.state = SystemState::IDLE;
 
-    Serial.printf("Dispensed: %.2f lbs in %d seconds\n", event.actualWeight, event.duration);
+    Serial.printf("Dispensed: %.2f lbs in %d:%02d\n", event.actualWeight, event.duration / 60, event.duration % 60);
 }
 
 void handleFeedingFailed() {

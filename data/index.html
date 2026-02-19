@@ -654,7 +654,9 @@
                         row.insertCell(1).textContent = event.feedCycle + 1;
                         row.insertCell(2).textContent = event.targetWeight.toFixed(2) + ' lbs';
                         row.insertCell(3).textContent = event.actualWeight.toFixed(2) + ' lbs';
-                        row.insertCell(4).textContent = event.duration + 's';
+                        const mins = Math.floor(event.duration / 60);
+                        const secs = event.duration % 60;
+                        row.insertCell(4).textContent = mins + ':' + String(secs).padStart(2, '0');
                         row.insertCell(5).textContent = event.alarmTriggered ?
                             '⚠️ ' + event.alarmReason : '✅ OK';
                     });
