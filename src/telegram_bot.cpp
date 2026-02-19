@@ -226,7 +226,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/enable - Enable auto-feeding\n"
                        "/clearalarm - Clear alarm state\n"
                        "/addfeed - Add manual feed entry\n"
-                       "  Usage: /addfeed cycle weight [duration] [HH:MM]", "");
+                       "  Usage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
         }
         else if (text == "/status") {
             // Trigger status request
@@ -253,7 +253,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
 
             if (args.length() == 0) {
                 _bot->sendMessage(chat_id,
-                    "Usage: /addfeed cycle weight [duration] [HH:MM]\n"
+                    "Usage: /addfeed <cycle> <weight> [duration] [HH:MM]\n"
                     "Example: /addfeed 2 3.5 95 08:30", "");
                 continue;
             }
@@ -275,7 +275,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             }
 
             if (argc < 2) {
-                _bot->sendMessage(chat_id, "❌ Need at least cycle and weight.\nUsage: /addfeed cycle weight [duration] [HH:MM]", "");
+                _bot->sendMessage(chat_id, "❌ Need at least cycle and weight.\nUsage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
                 continue;
             }
 
