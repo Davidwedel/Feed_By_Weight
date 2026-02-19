@@ -21,7 +21,8 @@ public:
     void sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, const char* reason);
 
     // Send feeding complete message
-    void sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t duration);
+    void sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t duration,
+                             float totalDispensedToday);
 
     // Send daily summary
     void sendDailySummary(FeedEvent* events, int count);

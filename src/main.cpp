@@ -514,7 +514,8 @@ void handleFeedingComplete() {
 
     // Send Telegram notification
     if (config.telegramEnabled) {
-        telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration);
+        telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration,
+                                         totalDispensedToday);
     }
 
     // Reset auger control state for next feeding

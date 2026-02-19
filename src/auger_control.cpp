@@ -192,6 +192,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Check if target weight reached
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
+                _lastWeightCheck = millis();
                 _stage = FeedingStage::COMPLETED;
                 Serial.printf("Feeding completed: Dispensed=%.2f in %lus\n",
                              _weightDispensed, elapsed);
@@ -321,6 +322,7 @@ void AugerControl::triggerAlarm(const char* reason) {
     // Stop all motors immediately
     controlAuger(false);
     controlChain(false);
+    _lastWeightCheck = millis();
     _stage = FeedingStage::FAILED;
 }
 
@@ -343,7 +345,7 @@ unsigned long AugerControl::getDuration() const {
     if (_feedStartTime == 0) return 0;
 
     if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED || _stage == FeedingStage::FAILED) {
-        return _lastWeightCheck / 1000;  // Return final duration
+        return (_lastWeightCheck - _feedStartTime) / 1000;
     }
 
     return (millis() - _feedStartTime) / 1000;
