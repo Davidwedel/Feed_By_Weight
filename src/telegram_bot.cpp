@@ -10,6 +10,8 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _statusRequested = false;
     _stopRequested = false;
     _clearAlarmRequested = false;
+    _addFeedRequested = false;
+    memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
     _statusRequestChatId = "";
 }
 
@@ -222,7 +224,9 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/status - System status\n"
                        "/disable - Disable auto-feeding\n"
                        "/enable - Enable auto-feeding\n"
-                       "/clearalarm - Clear alarm state", "");
+                       "/clearalarm - Clear alarm state\n"
+                       "/addfeed - Add manual feed entry\n"
+                       "  Usage: /addfeed cycle weight [duration] [HH:MM]", "");
         }
         else if (text == "/status") {
             // Trigger status request
@@ -241,6 +245,98 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         else if (text == "/clearalarm") {
             _clearAlarmRequested = true;
             _bot->sendMessage(chat_id, "🔕 Alarm cleared", "");
+        }
+        else if (text.startsWith("/addfeed")) {
+            // Parse: /addfeed <cycle> <weight> [duration_seconds] [HH:MM]
+            String args = text.substring(9); // skip "/addfeed "
+            args.trim();
+
+            if (args.length() == 0) {
+                _bot->sendMessage(chat_id,
+                    "Usage: /addfeed cycle weight [duration] [HH:MM]\n"
+                    "Example: /addfeed 2 3.5 95 08:30", "");
+                continue;
+            }
+
+            // Split by spaces
+            int argc = 0;
+            String argv[4];
+            int start = 0;
+            for (int a = 0; a < 4 && start < (int)args.length(); a++) {
+                int space = args.indexOf(' ', start);
+                if (space == -1) {
+                    argv[a] = args.substring(start);
+                    argc = a + 1;
+                    break;
+                }
+                argv[a] = args.substring(start, space);
+                argc = a + 1;
+                start = space + 1;
+            }
+
+            if (argc < 2) {
+                _bot->sendMessage(chat_id, "❌ Need at least cycle and weight.\nUsage: /addfeed cycle weight [duration] [HH:MM]", "");
+                continue;
+            }
+
+            int cycle = argv[0].toInt();
+            float weight = argv[1].toFloat();
+
+            if (cycle < 1 || cycle > 4) {
+                _bot->sendMessage(chat_id, "❌ Cycle must be 1-4", "");
+                continue;
+            }
+            if (weight <= 0) {
+                _bot->sendMessage(chat_id, "❌ Weight must be greater than 0", "");
+                continue;
+            }
+
+            uint16_t duration = 0;
+            if (argc >= 3) {
+                duration = argv[2].toInt();
+            }
+
+            // Timestamp: default to now, or parse HH:MM
+            time_t ts = time(NULL);
+            if (argc >= 4) {
+                int colon = argv[3].indexOf(':');
+                if (colon > 0) {
+                    int hh = argv[3].substring(0, colon).toInt();
+                    int mm = argv[3].substring(colon + 1).toInt();
+                    if (hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59) {
+                        struct tm timeinfo;
+                        localtime_r(&ts, &timeinfo);
+                        timeinfo.tm_hour = hh;
+                        timeinfo.tm_min = mm;
+                        timeinfo.tm_sec = 0;
+                        ts = mktime(&timeinfo);
+                    } else {
+                        _bot->sendMessage(chat_id, "❌ Invalid time format. Use HH:MM (e.g. 08:30)", "");
+                        continue;
+                    }
+                } else {
+                    _bot->sendMessage(chat_id, "❌ Invalid time format. Use HH:MM (e.g. 08:30)", "");
+                    continue;
+                }
+            }
+
+            // Build the event
+            memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
+            _pendingFeedEvent.timestamp = ts;
+            _pendingFeedEvent.feedCycle = cycle - 1; // store 0-based
+            _pendingFeedEvent.targetWeight = weight;
+            _pendingFeedEvent.actualWeight = weight;
+            _pendingFeedEvent.duration = duration;
+            _pendingFeedEvent.alarmTriggered = false;
+            strncpy(_pendingFeedEvent.alarmReason, "Manual", sizeof(_pendingFeedEvent.alarmReason) - 1);
+            _addFeedRequested = true;
+
+            // Confirm to user
+            char confirm[128];
+            snprintf(confirm, sizeof(confirm),
+                     "✅ Feed entry added: Cycle %d, %.2f lbs, %d:%02d",
+                     cycle, weight, duration / 60, duration % 60);
+            _bot->sendMessage(chat_id, confirm, "");
         }
         else {
             _bot->sendMessage(chat_id, "❓ Unknown command. Send /start for help.", "");

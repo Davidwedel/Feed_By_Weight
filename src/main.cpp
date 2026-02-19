@@ -202,6 +202,14 @@ void loop() {
             strcpy(systemStatus.lastError, "");
             Serial.println("Alarm cleared via Telegram /clearalarm");
         }
+
+        // Add manual feed event if /addfeed was issued
+        if (telegramBot->isAddFeedRequested()) {
+            FeedEvent event = telegramBot->getAddFeedEvent();
+            storage.addFeedEvent(event);
+            Serial.printf("Feed event added via Telegram: cycle %d, %.2f lbs\n",
+                         event.feedCycle + 1, event.actualWeight);
+        }
     }
 
     // Handle web server requests

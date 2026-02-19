@@ -46,6 +46,10 @@ public:
     // Check if alarm clear was requested (via /clearalarm)
     bool isClearAlarmRequested() { bool r = _clearAlarmRequested; _clearAlarmRequested = false; return r; }
 
+    // Check if a manual feed event was submitted (via /addfeed)
+    bool isAddFeedRequested() { bool r = _addFeedRequested; _addFeedRequested = false; return r; }
+    FeedEvent getAddFeedEvent() { return _pendingFeedEvent; }
+
 private:
     Config& _config;
     WiFiClientSecure _client;
@@ -55,6 +59,8 @@ private:
     bool _statusRequested;
     bool _stopRequested;
     bool _clearAlarmRequested;
+    bool _addFeedRequested;
+    FeedEvent _pendingFeedEvent;
     String _statusRequestChatId;
 
     // Handle incoming commands
