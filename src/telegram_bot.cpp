@@ -130,6 +130,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
              "  B: %.2f lbs\n"
              "  C: %.2f lbs\n"
              "  D: %.2f lbs\n"
+             "Total Dispensed Today: %.2f lbs\n"
              "Auger: %s\n"
              "Chain: %s\n"
              "BinTrac: %s\n"
@@ -141,6 +142,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
              status.currentWeight[1],
              status.currentWeight[2],
              status.currentWeight[3],
+             status.totalDispensedToday,
              status.augerRunning ? "ON" : "OFF",
              status.chainRunning ? "ON" : "OFF",
              status.bintracConnected ? "Connected" : "Disconnected",

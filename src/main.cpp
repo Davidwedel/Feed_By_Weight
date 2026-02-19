@@ -28,6 +28,9 @@ unsigned long lastBintracRead = 0;
 unsigned long lastStatusUpdate = 0;
 unsigned long lastProgressSave = 0;
 bool networkConnected = false;
+float totalDispensedToday = 0;
+uint8_t lastDayForTotal = 0;
+volatile bool historyChanged = false;
 
 // EMA smoothing and weight log
 bool emaInitialized = false;
@@ -42,6 +45,7 @@ void runStateMachine();
 void handleFeedingComplete();
 void handleFeedingFailed();
 float calculateFeedTarget(uint8_t feedCycle);
+void calculateTotalDispensedToday();
 
 void setup() {
     Serial.begin(115200);
@@ -158,6 +162,13 @@ void setup() {
     systemStatus.networkConnected = networkConnected;
     systemStatus.lastBintracUpdate = 0;
     strcpy(systemStatus.lastError, "");
+
+    systemStatus.totalDispensedToday = 0;
+
+    // Calculate total dispensed today from history (if time is synced)
+    if (scheduler.isTimeSynced()) {
+        calculateTotalDispensedToday();
+    }
 
     digitalWrite(STATUS_LED_PIN, HIGH);
     Serial.println("\n✓ System initialization complete\n");
@@ -353,6 +364,35 @@ void updateSystemStatus() {
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
     systemStatus.flowRate = augerControl.getFlowRate();
 
+    // Recalculate if history was restored/cleared
+    if (historyChanged && scheduler.isTimeSynced()) {
+        historyChanged = false;
+        calculateTotalDispensedToday();
+    }
+
+    // Check for day rollover and reset daily total
+    if (scheduler.isTimeSynced()) {
+        if (lastDayForTotal == 0) {
+            // First time sync — calculate from history
+            calculateTotalDispensedToday();
+        } else {
+            unsigned long now = scheduler.getCurrentTime() + (config.timezone * 3600L);
+            struct tm nowInfo;
+            time_t nowTime = (time_t)now;
+            gmtime_r(&nowTime, &nowInfo);
+            uint8_t currentDay = nowInfo.tm_mday;
+            if (currentDay != lastDayForTotal) {
+                totalDispensedToday = 0;
+                lastDayForTotal = currentDay;
+            }
+        }
+    }
+    // Include in-progress weight if currently feeding
+    systemStatus.totalDispensedToday = totalDispensedToday;
+    if (systemStatus.state == SystemState::FEEDING && systemStatus.weightDispensed > 0) {
+        systemStatus.totalDispensedToday += systemStatus.weightDispensed;
+    }
+
     // Update network connection status (check if we have a valid IP)
     IPAddress ip = Ethernet.localIP();
     networkConnected = (ip[0] != 0);
@@ -462,6 +502,9 @@ void handleFeedingComplete() {
     storage.addFeedEvent(event);
     storage.clearFeedProgress();
 
+    // Accumulate daily total
+    totalDispensedToday += event.actualWeight;
+
     if (!scheduler.isTimeSynced()) {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");
     }
@@ -518,6 +561,33 @@ void handleFeedingFailed() {
     strncpy(systemStatus.lastError, event.alarmReason, sizeof(systemStatus.lastError) - 1);
 
     Serial.printf("Alarm: %s\n", event.alarmReason);
+}
+
+void calculateTotalDispensedToday() {
+    totalDispensedToday = 0;
+    FeedEvent events[20];
+    int count = 0;
+    storage.getFeedHistory(events, count, 20);
+
+    unsigned long now = scheduler.getCurrentTime() + (config.timezone * 3600L);
+    struct tm todayInfo;
+    time_t nowTime = (time_t)now;
+    gmtime_r(&nowTime, &todayInfo);
+    int todayDay = todayInfo.tm_yday;
+    int todayYear = todayInfo.tm_year;
+    lastDayForTotal = todayInfo.tm_mday;
+
+    for (int i = 0; i < count; i++) {
+        unsigned long eventTime = events[i].timestamp + (config.timezone * 3600L);
+        struct tm eventInfo;
+        time_t evTime = (time_t)eventTime;
+        gmtime_r(&evTime, &eventInfo);
+
+        if (eventInfo.tm_yday == todayDay && eventInfo.tm_year == todayYear) {
+            totalDispensedToday += events[i].actualWeight;
+        }
+    }
+    Serial.printf("Total dispensed today (from history): %.1f lbs\n", totalDispensedToday);
 }
 
 float calculateFeedTarget(uint8_t feedCycle) {

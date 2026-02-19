@@ -3,6 +3,8 @@
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
+extern volatile bool historyChanged;
+
 // Concrete server class to workaround ESP32 abstract Server issue
 class ConcreteEthernetServer : public EthernetServer {
 public:
@@ -309,6 +311,7 @@ void FeedWebServer::handleGetHistory(EthernetClient& client) {
 
 void FeedWebServer::handleClearHistory(EthernetClient& client) {
     if (_storage.clearHistory()) {
+        historyChanged = true;
         sendJsonResponse(client, "{\"success\":true}");
     } else {
         sendResponse(client, 500, "application/json", "{\"error\":\"Failed to clear history\"}");
@@ -467,6 +470,7 @@ String FeedWebServer::statusToJson() {
     doc["weightAtStart"] = _status.weightAtStart;
     doc["weightDispensed"] = _status.weightDispensed;
     doc["flowRate"] = _status.flowRate;
+    doc["totalDispensedToday"] = _status.totalDispensedToday;
     doc["augerRunning"] = _status.augerRunning;
     doc["chainRunning"] = _status.chainRunning;
     doc["bintracConnected"] = _status.bintracConnected;
@@ -624,6 +628,7 @@ void FeedWebServer::handleRestoreHistory(EthernetClient& client, const String& b
 
     if (_storage.writeRawHistory(body)) {
         Serial.printf("History restored: %d bytes\n", body.length());
+        historyChanged = true;
         sendJsonResponse(client, "{\"success\":true}");
     } else {
         sendResponse(client, 500, "application/json", "{\"error\":\"Failed to write history\"}");

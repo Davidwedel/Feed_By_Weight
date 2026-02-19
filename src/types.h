@@ -114,6 +114,7 @@ struct SystemStatus {
     float weightAtStart;
     float weightDispensed;
     float flowRate;           // lbs/min
+    float totalDispensedToday;
     bool augerRunning;
     bool chainRunning;
     bool bintracConnected;

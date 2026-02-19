@@ -208,7 +208,11 @@
                 </div>
             </div>
 
-            <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px;">
+            <div style="margin-top: 15px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                <div class="status-item">
+                    <label>Total Dispensed Today</label>
+                    <div class="value" id="totalDispensedToday">0 lbs</div>
+                </div>
                 <div class="status-item">
                     <label>Weight Dispensed</label>
                     <div class="value" id="weightDispensed">0 lbs</div>
@@ -477,6 +481,7 @@
                     document.getElementById('binC').textContent = data.currentWeight[2].toFixed(2) + ' lbs';
                     document.getElementById('binD').textContent = data.currentWeight[3].toFixed(2) + ' lbs';
 
+                    document.getElementById('totalDispensedToday').textContent = data.totalDispensedToday.toFixed(2) + ' lbs';
                     document.getElementById('weightDispensed').textContent = data.weightDispensed.toFixed(2) + ' lbs';
                     document.getElementById('flowRate').textContent = data.flowRate.toFixed(2) + ' lbs/min';
                     document.getElementById('currentTime').textContent = data.currentTime || '-';
