@@ -160,11 +160,11 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌾 Weight Feeder Control System</h1>
+        <h1>Weight Feeder Control System</h1>
 
         <!-- Status Card -->
         <div class="card">
-            <h2>📊 System Status</h2>
+            <h2>System Status</h2>
             <div class="status-grid">
                 <div class="status-item">
                     <label>System State</label>
@@ -226,7 +226,7 @@
 
         <!-- Schedule Toggle -->
         <div class="card" style="display: flex; align-items: center; justify-content: space-between;">
-            <h2 style="margin-bottom: 0;">📅 Schedule</h2>
+            <h2 style="margin-bottom: 0;">Schedule</h2>
             <label style="display: flex; align-items: center; cursor: pointer; gap: 10px;">
                 <span id="scheduleLabel" style="font-weight: bold; font-size: 1.1em; color: #28a745;">Enabled</span>
                 <label class="toggle-switch">
@@ -238,7 +238,7 @@
 
         <!-- Manual Controls -->
         <div class="card">
-            <h2>🎮 Manual Controls</h2>
+            <h2>Manual Controls</h2>
             <div class="manual-controls">
                 <button onclick="manualControl('auger_on')" class="success">Auger ON</button>
                 <button onclick="manualControl('auger_off')" class="danger">Auger OFF</button>
@@ -252,7 +252,7 @@
 
         <!-- Configuration -->
         <div class="card">
-            <h2>⚙️ Configuration</h2>
+            <h2>Configuration</h2>
             <form id="configForm" onsubmit="saveConfig(event)">
                 <div class="form-group">
                     <label>BinTrac IP Address</label>
@@ -382,7 +382,7 @@
 
         <!-- Feed History -->
         <div class="card">
-            <h2>📜 Feed History</h2>
+            <h2>Feed History</h2>
             <button onclick="loadHistory()">Refresh</button>
             <button onclick="clearHistory()" class="danger">Clear History</button>
             <table id="historyTable" style="margin-top: 15px;">
@@ -658,7 +658,7 @@
                         const secs = event.duration % 60;
                         row.insertCell(4).textContent = mins + ':' + String(secs).padStart(2, '0');
                         row.insertCell(5).textContent = event.alarmTriggered ?
-                            '⚠️ ' + event.alarmReason : '✅ OK';
+                            'ALARM: ' + event.alarmReason : 'OK';
                     });
                 })
                 .catch(err => console.error('History fetch error:', err));

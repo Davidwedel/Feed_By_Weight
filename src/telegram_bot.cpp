@@ -28,7 +28,7 @@ bool TelegramBot::begin() {
 
     _initialized = true;
     Serial.println("Telegram bot initialized (WiFiClientSecure)");
-    sendMessage("🤖 Weight Feeder System Online");
+    sendMessage("Weight Feeder System Online");
 
     return true;
 }
@@ -53,7 +53,7 @@ void TelegramBot::sendAlarm(uint8_t feedCycle, float targetWeight, float actualW
 
     char message[256];
     snprintf(message, sizeof(message),
-             "🚨 *FEEDING ALARM*\n\n"
+             "*FEEDING ALARM*\n\n"
              "Feed Cycle: %d\n"
              "Target: %.2f lbs\n"
              "Actual: %.2f lbs\n"
@@ -72,7 +72,7 @@ void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t 
 
     char message[256];
     snprintf(message, sizeof(message),
-             "✅ *Feeding Complete*\n\n"
+             "*Feeding Complete*\n\n"
              "Cycle: %d\n"
              "Dispensed: %.2f lbs\n"
              "Duration: %d:%02d\n"
@@ -88,7 +88,7 @@ void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t 
 void TelegramBot::sendDailySummary(FeedEvent* events, int count) {
     if (!isEnabled()) return;
 
-    String message = "📊 *Daily Feeding Summary*\n\n";
+    String message = "*Daily Feeding Summary*\n\n";
 
     float totalWeight = 0;
     int alarmCount = 0;
@@ -104,7 +104,7 @@ void TelegramBot::sendDailySummary(FeedEvent* events, int count) {
         message += " lbs";
 
         if (events[i].alarmTriggered) {
-            message += " ⚠️";
+            message += " ALARM";
         }
         message += "\n";
     }
@@ -126,7 +126,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
     const char* stageStr[] = {"STOPPED", "CHAIN_ONLY", "BOTH_RUNNING", "PAUSED_FOR_FILL", "COMPLETED", "FAILED"};
 
     snprintf(message, sizeof(message),
-             "📈 *System Status*\n\n"
+             "*System Status*\n\n"
              "Schedule: %s\n"
              "State: %s\n"
              "Stage: %s\n"
@@ -213,13 +213,13 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         // Check if user is authorized (use chat_id)
         if (!isUserAuthorized(chat_id)) {
             Serial.printf("Unauthorized chat_id: %s (%s)\n", chat_id.c_str(), from_name.c_str());
-            _bot->sendMessage(chat_id, "⛔ Unauthorized. Contact system administrator.", "");
+            _bot->sendMessage(chat_id, "Unauthorized. Contact system administrator.", "");
             continue;
         }
 
         if (text == "/start") {
             _bot->sendMessage(chat_id,
-                       "👋 Welcome to Weight Feeder Control!\n\n"
+                       "Welcome to Weight Feeder Control!\n\n"
                        "Available commands:\n"
                        "/status - System status\n"
                        "/disable - Disable auto-feeding\n"
@@ -236,15 +236,15 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         else if (text == "/disable") {
             _config.autoFeedEnabled = false;
             _stopRequested = true;
-            _bot->sendMessage(chat_id, "✋ Auto-feeding disabled - stopping any active feeding", "");
+            _bot->sendMessage(chat_id, "Auto-feeding disabled - stopping any active feeding", "");
         }
         else if (text == "/enable") {
             _config.autoFeedEnabled = true;
-            _bot->sendMessage(chat_id, "✅ Auto-feeding enabled", "");
+            _bot->sendMessage(chat_id, "Auto-feeding enabled", "");
         }
         else if (text == "/clearalarm") {
             _clearAlarmRequested = true;
-            _bot->sendMessage(chat_id, "🔕 Alarm cleared", "");
+            _bot->sendMessage(chat_id, "Alarm cleared", "");
         }
         else if (text.startsWith("/addfeed")) {
             // Parse: /addfeed <cycle> <weight> [duration_seconds] [HH:MM]
@@ -275,7 +275,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             }
 
             if (argc < 2) {
-                _bot->sendMessage(chat_id, "❌ Need at least cycle and weight.\nUsage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
+                _bot->sendMessage(chat_id, "Need at least cycle and weight.\nUsage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
                 continue;
             }
 
@@ -283,11 +283,11 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             float weight = argv[1].toFloat();
 
             if (cycle < 1 || cycle > 4) {
-                _bot->sendMessage(chat_id, "❌ Cycle must be 1-4", "");
+                _bot->sendMessage(chat_id, "Cycle must be 1-4", "");
                 continue;
             }
             if (weight <= 0) {
-                _bot->sendMessage(chat_id, "❌ Weight must be greater than 0", "");
+                _bot->sendMessage(chat_id, "Weight must be greater than 0", "");
                 continue;
             }
 
@@ -311,11 +311,11 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                         timeinfo.tm_sec = 0;
                         ts = mktime(&timeinfo);
                     } else {
-                        _bot->sendMessage(chat_id, "❌ Invalid time format. Use HH:MM (e.g. 08:30)", "");
+                        _bot->sendMessage(chat_id, "Invalid time format. Use HH:MM (e.g. 08:30)", "");
                         continue;
                     }
                 } else {
-                    _bot->sendMessage(chat_id, "❌ Invalid time format. Use HH:MM (e.g. 08:30)", "");
+                    _bot->sendMessage(chat_id, "Invalid time format. Use HH:MM (e.g. 08:30)", "");
                     continue;
                 }
             }
@@ -334,12 +334,12 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             // Confirm to user
             char confirm[128];
             snprintf(confirm, sizeof(confirm),
-                     "✅ Feed entry added: Cycle %d, %.2f lbs, %d:%02d",
+                     "Feed entry added: Cycle %d, %.2f lbs, %d:%02d",
                      cycle, weight, duration / 60, duration % 60);
             _bot->sendMessage(chat_id, confirm, "");
         }
         else {
-            _bot->sendMessage(chat_id, "❓ Unknown command. Send /start for help.", "");
+            _bot->sendMessage(chat_id, "Unknown command. Send /start for help.", "");
         }
     }
 }

@@ -15,13 +15,13 @@ Automated feed control system using ESP32 with W5500 Ethernet, BinTrac weight mo
 ## Features
 
 ### Core Functionality
-- ✅ Reads weight data from BinTrac via Modbus TCP (all 4 bins: A, B, C, D)
-- ✅ Sequential control (chain pre-runs, then both run until target weight)
-- ✅ 4 daily feeding schedules (configurable times)
-- ✅ Alarm system for low feed rate detection
-- ✅ Web-based configuration interface
-- ✅ Telegram bot notifications
-- ✅ Feed history logging
+- Reads weight data from BinTrac via Modbus TCP (all 4 bins: A, B, C, D)
+- Sequential control (chain pre-runs, then both run until target weight)
+- 4 daily feeding schedules (configurable times)
+- Alarm system for low feed rate detection
+- Web-based configuration interface
+- Telegram bot notifications
+- Feed history logging
 
 ### Web Interface
 Access at `http://<ESP32-IP>/`
@@ -35,9 +35,9 @@ Access at `http://<ESP32-IP>/`
 
 ### Telegram Bot
 Receives notifications for:
-- ⚠️ Alarms (low feed rate, timeout, errors)
-- ✅ Feeding completion
-- 📊 Daily summaries
+- Alarms (low feed rate, timeout, errors)
+- Feeding completion
+- Daily summaries
 
 **Commands:**
 - `/start` - Show available commands

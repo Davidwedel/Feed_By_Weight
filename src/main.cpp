@@ -171,7 +171,7 @@ void setup() {
     }
 
     digitalWrite(STATUS_LED_PIN, HIGH);
-    Serial.println("\n✓ System initialization complete\n");
+    Serial.println("\nSystem initialization complete\n");
 }
 
 void loop() {
@@ -454,7 +454,7 @@ void runStateMachine() {
             // Check for warnings and send to Telegram
             const char* warning = augerControl.getNewWarning();
             if (warning != nullptr && config.telegramEnabled) {
-                String msg = String("🔔 Feed Cycle ") + String(currentFeedCycle + 1) + "\n" + String(warning);
+                String msg = String("Feed Cycle ") + String(currentFeedCycle + 1) + "\n" + String(warning);
                 telegramBot->sendMessage(msg);
             }
 

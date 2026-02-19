@@ -90,7 +90,7 @@ void Scheduler::startNTPSync() {
                 settimeofday(&tv, NULL);
 
                 _initialized = true;
-                Serial.println("✓ Time synchronized with NTP");
+                Serial.println("Time synchronized with NTP");
                 char timeStr[32];
                 getCurrentTimeStr(timeStr, sizeof(timeStr));
                 Serial.printf("Current time: %s (timestamp: %lu)\n", timeStr, epoch);
@@ -103,7 +103,7 @@ void Scheduler::startNTPSync() {
         udp.stop();
     }
 
-    Serial.println("✗ NTP sync failed after 3 attempts");
+    Serial.println("NTP sync failed after 3 attempts");
     Serial.println("Scheduled feeding will not work without time sync!");
 }
 

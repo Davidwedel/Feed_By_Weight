@@ -103,7 +103,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Check if weight reading failed (0 or negative usually means read error)
     if (currentTotalWeight <= 0) {
         if (!_warnedWeightFail) {
-            sendWarning("⚠️ Weight reading failed - continuing until max runtime");
+            sendWarning("Weight reading failed - continuing until max runtime");
             _warnedWeightFail = true;
         }
         _weightReadingFailed = true;
@@ -114,7 +114,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     } else {
         // Check if problem cleared
         if (_weightReadingFailed && _warnedWeightFail) {
-            sendWarning("✅ Weight reading restored");
+            sendWarning("Weight reading restored");
             _warnedWeightFail = false;
         }
         _weightReadingFailed = false;
@@ -205,12 +205,12 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
                 if (weightPerMinute < _alarmThreshold) {
                     if (!_warnedLowRate) {
-                        sendWarning("⚠️ Low feed rate - bin may be empty or jammed");
+                        sendWarning("Low feed rate - bin may be empty or jammed");
                         _warnedLowRate = true;
                     }
                 } else if (_warnedLowRate) {
                     // Feed rate improved
-                    sendWarning("✅ Feed rate normal");
+                    sendWarning("Feed rate normal");
                     _warnedLowRate = false;
                 }
 
@@ -300,12 +300,12 @@ void AugerControl::checkSafety(float currentWeight) {
     // Check: no weight change after 30 seconds
     if (elapsed > 30 && _weightDispensed < _fluctuationThreshold) {
         if (!_warnedNoChange) {
-            sendWarning("⚠️ No weight change detected - bin may be empty or jammed");
+            sendWarning("No weight change detected - bin may be empty or jammed");
             _warnedNoChange = true;
         }
     } else if (_warnedNoChange && _weightDispensed >= _fluctuationThreshold) {
         // Weight started changing
-        sendWarning("✅ Weight dispensing resumed");
+        sendWarning("Weight dispensing resumed");
         _warnedNoChange = false;
     }
 }
