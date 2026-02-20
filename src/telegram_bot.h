@@ -46,9 +46,13 @@ public:
     // Check if alarm clear was requested (via /clearalarm)
     bool isClearAlarmRequested() { bool r = _clearAlarmRequested; _clearAlarmRequested = false; return r; }
 
-    // Check if a manual feed event was submitted (via /addfeed)
+    // Check if a manual feed event was submitted (via /logoldfeed)
     bool isAddFeedRequested() { bool r = _addFeedRequested; _addFeedRequested = false; return r; }
     FeedEvent getAddFeedEvent() { return _pendingFeedEvent; }
+
+    // Check if start feed was requested (via /startfeed)
+    bool isStartFeedRequested() { bool r = _startFeedRequested; _startFeedRequested = false; return r; }
+    float getStartFeedWeight() { return _startFeedWeight; }
 
 private:
     Config& _config;
@@ -60,6 +64,8 @@ private:
     bool _stopRequested;
     bool _clearAlarmRequested;
     bool _addFeedRequested;
+    bool _startFeedRequested;
+    float _startFeedWeight;
     FeedEvent _pendingFeedEvent;
     String _statusRequestChatId;
 

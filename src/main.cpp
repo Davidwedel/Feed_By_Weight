@@ -212,6 +212,36 @@ void loop() {
             Serial.printf("Feed event added via Telegram: cycle %d, %.2f lbs\n",
                          event.feedCycle + 1, event.actualWeight);
         }
+
+        // Start feed if /startfeed was issued
+        if (telegramBot->isStartFeedRequested()) {
+            if (augerControl.isFeeding() || systemStatus.state == SystemState::FEEDING) {
+                Serial.println("Telegram /startfeed ignored - already feeding");
+            } else if (systemStatus.state == SystemState::ALARM) {
+                Serial.println("Telegram /startfeed ignored - in alarm state");
+            } else {
+                float totalWeight = 0;
+                for (int i = 0; i < 4; i++) {
+                    totalWeight += systemStatus.currentWeight[i];
+                }
+                systemStatus.weightAtStart = totalWeight;
+                currentFeedTarget = telegramBot->getStartFeedWeight();
+                currentFeedCycle = 0;
+
+                augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime,
+                    config.maxRuntime, config.fillDetectionRate,
+                    config.fillSettlingTime, config.weightFluctuationThreshold);
+
+                systemStatus.state = SystemState::FEEDING;
+                systemStatus.feedStartTime = millis();
+
+                unsigned long ts = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
+                storage.saveFeedProgress(systemStatus.weightAtStart, 0, currentFeedTarget, currentFeedCycle, ts);
+                lastProgressSave = millis();
+
+                Serial.printf("Feed started via Telegram: %.2f lbs target\n", currentFeedTarget);
+            }
+        }
     }
 
     // Handle web server requests

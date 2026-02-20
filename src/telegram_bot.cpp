@@ -11,6 +11,8 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _stopRequested = false;
     _clearAlarmRequested = false;
     _addFeedRequested = false;
+    _startFeedRequested = false;
+    _startFeedWeight = 0;
     memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
     _statusRequestChatId = "";
 }
@@ -225,6 +227,8 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/disable - Disable auto-feeding\n"
                        "/enable - Enable auto-feeding\n"
                        "/clearalarm - Clear alarm state\n"
+                       "/startfeed - Start a feed cycle\n"
+                       "  Usage: /startfeed <weight>\n"
                        "/logoldfeed - Add manual feed entry\n"
                        "  Usage: /logoldfeed <cycle> <weight> [duration] [HH:MM]", "");
         }
@@ -245,6 +249,24 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
         else if (text == "/clearalarm") {
             _clearAlarmRequested = true;
             _bot->sendMessage(chat_id, "Alarm cleared", "");
+        }
+        else if (text.startsWith("/startfeed")) {
+            String args = text.substring(11); // skip "/startfeed "
+            args.trim();
+            if (args.length() == 0) {
+                _bot->sendMessage(chat_id, "Usage: /startfeed <weight>\nExample: /startfeed 25", "");
+                continue;
+            }
+            float weight = args.toFloat();
+            if (weight <= 0) {
+                _bot->sendMessage(chat_id, "Weight must be greater than 0", "");
+                continue;
+            }
+            _startFeedWeight = weight;
+            _startFeedRequested = true;
+            char msg[64];
+            snprintf(msg, sizeof(msg), "Starting feed: %.2f lbs...", weight);
+            _bot->sendMessage(chat_id, msg, "");
         }
         else if (text.startsWith("/logoldfeed")) {
             // Parse: /logoldfeed <cycle> <weight> [duration_seconds] [HH:MM]
