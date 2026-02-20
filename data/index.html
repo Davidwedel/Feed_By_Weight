@@ -236,16 +236,24 @@
             </label>
         </div>
 
+        <!-- Automatic Controls -->
+        <div class="card">
+            <h2>Automatic Controls</h2>
+            <div class="manual-controls">
+                <button id="pauseBtn" onclick="pauseFeed()" style="background:#ffc107;color:#000" disabled>Pause</button>
+                <button id="resumeBtn" onclick="resumeFeed()" class="success" disabled>Resume</button>
+                <button id="terminateBtn" onclick="terminateFeed()" class="danger" disabled>Terminate Feed</button>
+            </div>
+        </div>
+
         <!-- Manual Controls -->
         <div class="card">
             <h2>Manual Controls</h2>
             <div class="manual-controls">
-                <button onclick="manualControl('auger_on')" class="success">Auger ON</button>
-                <button onclick="manualControl('auger_off')" class="danger">Auger OFF</button>
-                <button onclick="manualControl('chain_on')" class="success">Chain ON</button>
-                <button onclick="manualControl('chain_off')" class="danger">Chain OFF</button>
-                <button onclick="startFeed()" style="background:#17a2b8">Start Feed Now</button>
-                <button onclick="stopFeed()" class="danger">STOP ALL</button>
+                <button id="augerOnBtn" onclick="manualControl('auger_on')" class="success">Auger ON</button>
+                <button id="augerOffBtn" onclick="manualControl('auger_off')" class="danger">Auger OFF</button>
+                <button id="chainOnBtn" onclick="manualControl('chain_on')" class="success">Chain ON</button>
+                <button id="chainOffBtn" onclick="manualControl('chain_off')" class="danger">Chain OFF</button>
                 <button id="clearAlarmBtn" onclick="clearAlarm()" class="danger" style="display:none;background:#ff8c00">CLEAR ALARM</button>
             </div>
         </div>
@@ -464,10 +472,25 @@
                 .then(r => r.json())
                 .then(data => {
                     const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
-                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED'];
+                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED', 'PAUSED_MANUAL', 'TERMINATED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
                     document.getElementById('clearAlarmBtn').style.display = data.state === 3 ? 'inline-block' : 'none';
+
+                    // Disable manual controls during automated feeding
+                    const feeding = data.state === 2; // FEEDING
+                    document.getElementById('augerOnBtn').disabled = feeding;
+                    document.getElementById('augerOffBtn').disabled = feeding;
+                    document.getElementById('chainOnBtn').disabled = feeding;
+                    document.getElementById('chainOffBtn').disabled = feeding;
+
+                    // Enable/disable automatic controls based on feeding state
+                    const paused = feeding && data.feedingStage === 6; // PAUSED_MANUAL
+                    const pausedForFill = feeding && data.feedingStage === 3; // PAUSED_FOR_FILL
+                    document.getElementById('pauseBtn').disabled = !feeding || paused || pausedForFill;
+                    document.getElementById('resumeBtn').disabled = !paused;
+                    document.getElementById('terminateBtn').disabled = !feeding;
+
                     document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
 
                     document.getElementById('bintracStatus').textContent = data.bintracConnected ? 'Connected' : 'Disconnected';
@@ -608,21 +631,27 @@
             .catch(err => console.error('Manual control error:', err));
         }
 
-        function startFeed() {
-            if (confirm('Start feeding now?')) {
-                fetch(API_BASE + '/api/feed/start', {method: 'POST'})
-                    .then(r => r.json())
-                    .then(() => loadStatus())
-                    .catch(err => alert('Error: ' + err));
-            }
+
+        function pauseFeed() {
+            fetch(API_BASE + '/api/feed/pause', {method: 'POST'})
+                .then(r => r.json())
+                .then(() => loadStatus())
+                .catch(err => console.error('Pause error:', err));
         }
 
-        function stopFeed() {
-            if (confirm('Stop all augers immediately?')) {
-                fetch(API_BASE + '/api/feed/stop', {method: 'POST'})
+        function resumeFeed() {
+            fetch(API_BASE + '/api/feed/resume', {method: 'POST'})
+                .then(r => r.json())
+                .then(() => loadStatus())
+                .catch(err => console.error('Resume error:', err));
+        }
+
+        function terminateFeed() {
+            if (confirm('Terminate this feeding? Partial amount will be recorded.')) {
+                fetch(API_BASE + '/api/feed/terminate', {method: 'POST'})
                     .then(r => r.json())
                     .then(() => loadStatus())
-                    .catch(err => console.error('Stop error:', err));
+                    .catch(err => console.error('Terminate error:', err));
             }
         }
 

@@ -17,6 +17,11 @@ public:
     // Stop all immediately
     void stopAll();
 
+    // Pause/resume manual control during feeding
+    void pauseFeeding();
+    void resumeFeeding();
+    void terminate();
+
     // Update - call frequently in main loop
     // Returns current feeding stage
     FeedingStage update(float currentTotalWeight);
@@ -44,9 +49,10 @@ public:
     void setAuger(bool state);
     void setChain(bool state);
 
-    // Check if feeding is active (only active stages, not terminal states)
+    // Check if feeding is active (including paused states, not terminal states)
     bool isFeeding() const {
-        return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING;
+        return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING
+            || _stage == FeedingStage::PAUSED_FOR_FILL || _stage == FeedingStage::PAUSED_MANUAL;
     }
 
 private:

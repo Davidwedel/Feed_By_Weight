@@ -44,6 +44,9 @@ private:
     void handleManualControl(EthernetClient& client, const String& body);
     void handleStartFeed(EthernetClient& client);
     void handleStopFeed(EthernetClient& client);
+    void handlePauseFeed(EthernetClient& client);
+    void handleResumeFeed(EthernetClient& client);
+    void handleTerminateFeed(EthernetClient& client);
     void handleClearAlarm(EthernetClient& client);
     void handleWeightLogPage(EthernetClient& client);
     void handleGetWeightLog(EthernetClient& client);

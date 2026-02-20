@@ -26,7 +26,9 @@ enum class FeedingStage {
     BOTH_RUNNING,
     PAUSED_FOR_FILL,
     COMPLETED,
-    FAILED
+    FAILED,
+    PAUSED_MANUAL,
+    TERMINATED
 };
 
 // Configuration structure

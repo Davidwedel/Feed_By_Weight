@@ -32,6 +32,7 @@ public:
 
 private:
     bool _initialized;
+    void trimHistory(int maxEntries);
 };
 
 #endif // STORAGE_H

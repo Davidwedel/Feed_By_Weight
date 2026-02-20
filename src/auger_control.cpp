@@ -96,7 +96,9 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
 }
 
 FeedingStage AugerControl::update(float currentTotalWeight) {
-    if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED || _stage == FeedingStage::FAILED) {
+    if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED
+        || _stage == FeedingStage::FAILED || _stage == FeedingStage::PAUSED_MANUAL
+        || _stage == FeedingStage::TERMINATED) {
         return _stage;
     }
 
@@ -293,6 +295,52 @@ void AugerControl::stopAll() {
     _stage = FeedingStage::STOPPED;
 }
 
+void AugerControl::pauseFeeding() {
+    if (_stage != FeedingStage::CHAIN_ONLY && _stage != FeedingStage::BOTH_RUNNING) {
+        Serial.println("Cannot pause - not actively feeding");
+        return;
+    }
+    _stageBeforePause = _stage;
+    controlAuger(false);
+    controlChain(false);
+    _stage = FeedingStage::PAUSED_MANUAL;
+    Serial.println("Feeding paused by user");
+}
+
+void AugerControl::resumeFeeding() {
+    if (_stage != FeedingStage::PAUSED_MANUAL) {
+        Serial.println("Cannot resume - not manually paused");
+        return;
+    }
+
+    _stage = _stageBeforePause;
+
+    if (_stage == FeedingStage::CHAIN_ONLY) {
+        controlChain(true);
+    } else if (_stage == FeedingStage::BOTH_RUNNING) {
+        controlChain(true);
+        controlAuger(true);
+        _bothRunningStartTime = millis();
+        _minuteStartTime = millis();
+        _weightAtMinuteStart = _lastValidWeight;
+    }
+
+    // Reset fill rate tracking to prevent immediate fill detection
+    _fillRateWeight = _lastValidWeight;
+    _fillRateStartTime = millis();
+
+    Serial.printf("Feeding resumed to %s\n",
+                  _stage == FeedingStage::CHAIN_ONLY ? "CHAIN_ONLY" : "BOTH_RUNNING");
+}
+
+void AugerControl::terminate() {
+    controlAuger(false);
+    controlChain(false);
+    _lastWeightCheck = millis();
+    _stage = FeedingStage::TERMINATED;
+    Serial.println("Feeding terminated by user");
+}
+
 void AugerControl::checkSafety(float currentWeight) {
     // Calculate elapsed time from when BOTH_RUNNING started (not from chain pre-run)
     unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
@@ -344,7 +392,8 @@ float AugerControl::getFlowRate() const {
 unsigned long AugerControl::getDuration() const {
     if (_feedStartTime == 0) return 0;
 
-    if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED || _stage == FeedingStage::FAILED) {
+    if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED
+        || _stage == FeedingStage::FAILED || _stage == FeedingStage::TERMINATED) {
         return (_lastWeightCheck - _feedStartTime) / 1000;
     }
 

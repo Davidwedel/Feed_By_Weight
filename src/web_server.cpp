@@ -119,6 +119,12 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleStartFeed(client);
         } else if (path == "/api/feed/stop") {
             handleStopFeed(client);
+        } else if (path == "/api/feed/pause") {
+            handlePauseFeed(client);
+        } else if (path == "/api/feed/resume") {
+            handleResumeFeed(client);
+        } else if (path == "/api/feed/terminate") {
+            handleTerminateFeed(client);
         } else if (path == "/api/alarm/clear") {
             handleClearAlarm(client);
         } else if (path == "/api/history/restore") {
@@ -403,6 +409,33 @@ void FeedWebServer::handleStopFeed(EthernetClient& client) {
     }
 
     _augerControl.stopAll();
+    sendJsonResponse(client, "{\"success\":true}");
+}
+
+void FeedWebServer::handlePauseFeed(EthernetClient& client) {
+    if (_status.state != SystemState::FEEDING) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Not currently feeding\"}");
+        return;
+    }
+    _augerControl.pauseFeeding();
+    sendJsonResponse(client, "{\"success\":true}");
+}
+
+void FeedWebServer::handleResumeFeed(EthernetClient& client) {
+    if (_status.state != SystemState::FEEDING) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Not currently feeding\"}");
+        return;
+    }
+    _augerControl.resumeFeeding();
+    sendJsonResponse(client, "{\"success\":true}");
+}
+
+void FeedWebServer::handleTerminateFeed(EthernetClient& client) {
+    if (_status.state != SystemState::FEEDING) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Not currently feeding\"}");
+        return;
+    }
+    _augerControl.terminate();
     sendJsonResponse(client, "{\"success\":true}");
 }
 

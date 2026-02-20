@@ -44,6 +44,7 @@ void updateSystemStatus();
 void runStateMachine();
 void handleFeedingComplete();
 void handleFeedingFailed();
+void handleFeedingTerminated();
 float calculateFeedTarget(uint8_t feedCycle);
 void calculateTotalDispensedToday();
 
@@ -203,10 +204,11 @@ void loop() {
             Serial.println("Alarm cleared via Telegram /clearalarm");
         }
 
-        // Add manual feed event if /addfeed was issued
+        // Add manual feed event if /logoldfeed was issued
         if (telegramBot->isAddFeedRequested()) {
             FeedEvent event = telegramBot->getAddFeedEvent();
             storage.addFeedEvent(event);
+            calculateTotalDispensedToday();
             Serial.printf("Feed event added via Telegram: cycle %d, %.2f lbs\n",
                          event.feedCycle + 1, event.actualWeight);
         }
@@ -470,6 +472,8 @@ void runStateMachine() {
                 handleFeedingComplete();
             } else if (stage == FeedingStage::FAILED) {
                 handleFeedingFailed();
+            } else if (stage == FeedingStage::TERMINATED) {
+                handleFeedingTerminated();
             }
             break;
         }
@@ -570,6 +574,37 @@ void handleFeedingFailed() {
     strncpy(systemStatus.lastError, event.alarmReason, sizeof(systemStatus.lastError) - 1);
 
     Serial.printf("Alarm: %s\n", event.alarmReason);
+}
+
+void handleFeedingTerminated() {
+    Serial.println("=== Feeding Terminated by User ===");
+
+    FeedEvent event;
+    event.timestamp = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
+    event.feedCycle = currentFeedCycle;
+    event.targetWeight = currentFeedTarget;
+    event.actualWeight = augerControl.getWeightDispensed();
+    event.duration = augerControl.getDuration();
+    event.alarmTriggered = false;
+    strcpy(event.alarmReason, "User terminated");
+
+    storage.addFeedEvent(event);
+    storage.clearFeedProgress();
+
+    totalDispensedToday += event.actualWeight;
+
+    scheduler.markFeedingComplete(currentFeedCycle);
+
+    if (config.telegramEnabled) {
+        telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration,
+                                         totalDispensedToday);
+    }
+
+    augerControl.stopAll();
+    systemStatus.state = SystemState::IDLE;
+
+    Serial.printf("Terminated: %.2f lbs dispensed in %d:%02d\n",
+                  event.actualWeight, event.duration / 60, event.duration % 60);
 }
 
 void calculateTotalDispensedToday() {

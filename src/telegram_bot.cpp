@@ -225,8 +225,8 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/disable - Disable auto-feeding\n"
                        "/enable - Enable auto-feeding\n"
                        "/clearalarm - Clear alarm state\n"
-                       "/addfeed - Add manual feed entry\n"
-                       "  Usage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
+                       "/logoldfeed - Add manual feed entry\n"
+                       "  Usage: /logoldfeed <cycle> <weight> [duration] [HH:MM]", "");
         }
         else if (text == "/status") {
             // Trigger status request
@@ -246,15 +246,15 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             _clearAlarmRequested = true;
             _bot->sendMessage(chat_id, "Alarm cleared", "");
         }
-        else if (text.startsWith("/addfeed")) {
-            // Parse: /addfeed <cycle> <weight> [duration_seconds] [HH:MM]
-            String args = text.substring(9); // skip "/addfeed "
+        else if (text.startsWith("/logoldfeed")) {
+            // Parse: /logoldfeed <cycle> <weight> [duration_seconds] [HH:MM]
+            String args = text.substring(12); // skip "/logoldfeed "
             args.trim();
 
             if (args.length() == 0) {
                 _bot->sendMessage(chat_id,
-                    "Usage: /addfeed <cycle> <weight> [duration] [HH:MM]\n"
-                    "Example: /addfeed 2 3.5 95 08:30", "");
+                    "Usage: /logoldfeed <cycle> <weight> [duration] [HH:MM]\n"
+                    "Example: /logoldfeed 2 3.5 95 08:30", "");
                 continue;
             }
 
@@ -275,7 +275,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             }
 
             if (argc < 2) {
-                _bot->sendMessage(chat_id, "Need at least cycle and weight.\nUsage: /addfeed <cycle> <weight> [duration] [HH:MM]", "");
+                _bot->sendMessage(chat_id, "Need at least cycle and weight.\nUsage: /logoldfeed <cycle> <weight> [duration] [HH:MM]", "");
                 continue;
             }
 

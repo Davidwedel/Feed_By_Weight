@@ -165,8 +165,8 @@ bool Storage::addFeedEvent(const FeedEvent& event) {
 
     file.close();
 
-    // TODO: Implement circular buffer (keep only last MAX_HISTORY_ENTRIES)
-    // This would require reading the file, removing oldest entries if > MAX_HISTORY_ENTRIES
+    // Trim to most recent 20 entries
+    trimHistory(20);
 
     return true;
 }
@@ -245,6 +245,50 @@ bool Storage::writeRawHistory(const String& csvData) {
     file.print(csvData);
     file.close();
     return true;
+}
+
+void Storage::trimHistory(int maxEntries) {
+    if (!LittleFS.exists(HISTORY_FILE)) return;
+
+    // Read entire file
+    File file = LittleFS.open(HISTORY_FILE, "r");
+    if (!file) return;
+    String content = file.readString();
+    file.close();
+
+    // Count lines
+    int total = 0;
+    int pos = 0;
+    while (pos < (int)content.length()) {
+        int nl = content.indexOf('\n', pos);
+        if (nl == -1) break;
+        String line = content.substring(pos, nl);
+        line.trim();
+        if (line.length() > 0) total++;
+        pos = nl + 1;
+    }
+
+    if (total <= maxEntries) return;
+
+    // Skip oldest lines, keep the rest
+    int skip = total - maxEntries;
+    int skipped = 0;
+    pos = 0;
+    while (skipped < skip && pos < (int)content.length()) {
+        int nl = content.indexOf('\n', pos);
+        if (nl == -1) break;
+        String line = content.substring(pos, nl);
+        line.trim();
+        if (line.length() > 0) skipped++;
+        pos = nl + 1;
+    }
+
+    file = LittleFS.open(HISTORY_FILE, "w");
+    if (!file) return;
+    file.print(content.substring(pos));
+    file.close();
+
+    Serial.printf("History trimmed: removed %d oldest entries, kept %d\n", skip, maxEntries);
 }
 
 bool Storage::clearHistory() {
