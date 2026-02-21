@@ -154,7 +154,16 @@ void FeedWebServer::sendResponse(EthernetClient& client, int code, const char* c
     client.println(body.length());
     client.println("Access-Control-Allow-Origin: *");
     client.println();
-    client.print(body);
+
+    // Send body in chunks to avoid overflowing W5500 send buffer
+    const int chunkSize = 512;
+    int sent = 0;
+    while (sent < (int)body.length()) {
+        int remaining = body.length() - sent;
+        int len = remaining < chunkSize ? remaining : chunkSize;
+        client.write((const uint8_t*)body.c_str() + sent, len);
+        sent += len;
+    }
 }
 
 void FeedWebServer::sendJsonResponse(EthernetClient& client, const String& json) {
@@ -669,10 +678,10 @@ void FeedWebServer::handleRestoreHistory(EthernetClient& client, const String& b
 }
 
 String FeedWebServer::historyToJson() {
-    FeedEvent events[50];
+    FeedEvent events[20];
     int count = 0;
 
-    _storage.getFeedHistory(events, count, 50);
+    _storage.getFeedHistory(events, count, 20);
 
     JsonDocument doc;
     JsonArray arr = doc["history"].to<JsonArray>();
