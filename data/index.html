@@ -420,7 +420,12 @@
 
     <script>
         const API_BASE = window.location.pathname.replace(/\/[^/]*$/, '');
-        let statusPending = false;
+        let fetchBusy = false;
+        function espFetch(url, opts) {
+            if (fetchBusy) return Promise.reject('busy');
+            fetchBusy = true;
+            return fetch(url, opts).finally(() => { fetchBusy = false; });
+        }
 
         // Auto-refresh status
         setInterval(loadStatus, 3000);
@@ -469,9 +474,7 @@
         }
 
         function loadStatus() {
-            if (statusPending) return;
-            statusPending = true;
-            fetch(API_BASE + '/api/status')
+            espFetch(API_BASE + '/api/status')
                 .then(r => r.json())
                 .then(data => {
                     const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
@@ -512,8 +515,7 @@
                     document.getElementById('flowRate').textContent = data.flowRate.toFixed(2) + ' lbs/min';
                     document.getElementById('currentTime').textContent = data.currentTime || '-';
                 })
-                .catch(err => console.error('Status fetch error:', err))
-                .finally(() => { statusPending = false; });
+                .catch(err => { if (err !== 'busy') console.error('Status fetch error:', err); });
         }
 
         function updateScheduleLabel(enabled) {
@@ -524,7 +526,7 @@
 
         function toggleSchedule(enabled) {
             updateScheduleLabel(enabled);
-            fetch(API_BASE + '/api/config', {
+            espFetch(API_BASE + '/api/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({autoFeedEnabled: enabled})
@@ -537,7 +539,7 @@
         }
 
         function loadConfig() {
-            fetch(API_BASE + '/api/config')
+            espFetch(API_BASE + '/api/config')
                 .then(r => r.json())
                 .then(data => {
                     document.getElementById('bintracIP').value = data.bintracIP;
@@ -571,7 +573,7 @@
 
                     updateFeedingRows();
                 })
-                .catch(err => console.error('Config fetch error:', err));
+                .catch(err => { if (err !== 'busy') console.error('Config fetch error:', err); });
         }
 
         function saveConfig(event) {
@@ -609,7 +611,7 @@
                 telegramAllowedUsers: document.getElementById('telegramAllowedUsers').value
             };
 
-            fetch(API_BASE + '/api/config', {
+            espFetch(API_BASE + '/api/config', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(config)
@@ -625,7 +627,7 @@
         }
 
         function manualControl(action) {
-            fetch(API_BASE + '/api/manual', {
+            espFetch(API_BASE + '/api/manual', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({action: action})
@@ -637,14 +639,14 @@
 
 
         function pauseFeed() {
-            fetch(API_BASE + '/api/feed/pause', {method: 'POST'})
+            espFetch(API_BASE + '/api/feed/pause', {method: 'POST'})
                 .then(r => r.json())
                 .then(() => loadStatus())
                 .catch(err => console.error('Pause error:', err));
         }
 
         function resumeFeed() {
-            fetch(API_BASE + '/api/feed/resume', {method: 'POST'})
+            espFetch(API_BASE + '/api/feed/resume', {method: 'POST'})
                 .then(r => r.json())
                 .then(() => loadStatus())
                 .catch(err => console.error('Resume error:', err));
@@ -652,7 +654,7 @@
 
         function terminateFeed() {
             if (confirm('Terminate this feeding? Partial amount will be recorded.')) {
-                fetch(API_BASE + '/api/feed/terminate', {method: 'POST'})
+                espFetch(API_BASE + '/api/feed/terminate', {method: 'POST'})
                     .then(r => r.json())
                     .then(() => loadStatus())
                     .catch(err => console.error('Terminate error:', err));
@@ -661,7 +663,7 @@
 
         function clearAlarm() {
             if (confirm('Acknowledge and clear alarm?')) {
-                fetch(API_BASE + '/api/alarm/clear', {method: 'POST'})
+                espFetch(API_BASE + '/api/alarm/clear', {method: 'POST'})
                     .then(r => r.json())
                     .then(() => loadStatus())
                     .catch(err => console.error('Clear alarm error:', err));
@@ -669,7 +671,7 @@
         }
 
         function loadHistory() {
-            fetch(API_BASE + '/api/history')
+            espFetch(API_BASE + '/api/history')
                 .then(r => r.json())
                 .then(data => {
                     const tbody = document.getElementById('historyBody');
@@ -694,12 +696,12 @@
                             'ALARM: ' + event.alarmReason : 'OK';
                     });
                 })
-                .catch(err => console.error('History fetch error:', err));
+                .catch(err => { if (err !== 'busy') console.error('History fetch error:', err); });
         }
 
         function clearHistory() {
             if (confirm('Clear all feed history?')) {
-                fetch(API_BASE + '/api/history', {method: 'DELETE'})
+                espFetch(API_BASE + '/api/history', {method: 'DELETE'})
                     .then(r => r.json())
                     .then(() => loadHistory())
                     .catch(err => console.error('Clear history error:', err));

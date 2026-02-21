@@ -155,15 +155,19 @@ void FeedWebServer::sendResponse(EthernetClient& client, int code, const char* c
     client.println("Access-Control-Allow-Origin: *");
     client.println();
 
-    // Send body in chunks — W5500 has a 2KB send buffer
-    const char* ptr = body.c_str();
-    int remaining = body.length();
-    while (remaining > 0) {
-        int chunk = remaining > 1024 ? 1024 : remaining;
-        client.write((const uint8_t*)ptr, chunk);
-        client.flush();
-        ptr += chunk;
-        remaining -= chunk;
+    // W5500 has a 2KB send buffer — chunk large responses to avoid truncation
+    if (body.length() <= 1024) {
+        client.print(body);
+    } else {
+        const char* ptr = body.c_str();
+        int remaining = body.length();
+        while (remaining > 0) {
+            int chunk = remaining > 1024 ? 1024 : remaining;
+            client.write((const uint8_t*)ptr, chunk);
+            client.flush();
+            ptr += chunk;
+            remaining -= chunk;
+        }
     }
 }
 
