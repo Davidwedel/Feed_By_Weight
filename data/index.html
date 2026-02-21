@@ -122,6 +122,11 @@
         button.success:hover {
             background: #218838;
         }
+        button:disabled {
+            background: #ccc !important;
+            color: #888 !important;
+            cursor: not-allowed;
+        }
         .manual-controls {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -240,8 +245,7 @@
         <div class="card">
             <h2>Automatic Controls</h2>
             <div class="manual-controls">
-                <button id="pauseBtn" onclick="pauseFeed()" style="background:#ffc107;color:#000" disabled>Pause</button>
-                <button id="resumeBtn" onclick="resumeFeed()" class="success" disabled>Resume</button>
+                <button id="pauseResumeBtn" onclick="togglePause()" style="background:#ffc107;color:#000" disabled>Pause</button>
                 <button id="terminateBtn" onclick="terminateFeed()" class="danger" disabled>Terminate Feed</button>
             </div>
         </div>
@@ -493,8 +497,16 @@
                     // Enable/disable automatic controls based on feeding state
                     const paused = feeding && data.feedingStage === 6; // PAUSED_MANUAL
                     const pausedForFill = feeding && data.feedingStage === 3; // PAUSED_FOR_FILL
-                    document.getElementById('pauseBtn').disabled = !feeding || paused || pausedForFill;
-                    document.getElementById('resumeBtn').disabled = !paused;
+                    const btn = document.getElementById('pauseResumeBtn');
+                    if (paused) {
+                        btn.textContent = 'Resume';
+                        btn.style.background = '#28a745';
+                        btn.disabled = false;
+                    } else {
+                        btn.textContent = 'Pause';
+                        btn.style.background = '#ffc107';
+                        btn.disabled = !feeding || pausedForFill;
+                    }
                     document.getElementById('terminateBtn').disabled = !feeding;
 
                     document.getElementById('feedingStage').textContent = stages[data.feedingStage] || 'UNKNOWN';
@@ -638,18 +650,13 @@
         }
 
 
-        function pauseFeed() {
-            espFetch(API_BASE + '/api/feed/pause', {method: 'POST'})
+        function togglePause() {
+            const paused = document.getElementById('pauseResumeBtn').textContent === 'Resume';
+            const url = paused ? '/api/feed/resume' : '/api/feed/pause';
+            espFetch(API_BASE + url, {method: 'POST'})
                 .then(r => r.json())
                 .then(() => loadStatus())
-                .catch(err => console.error('Pause error:', err));
-        }
-
-        function resumeFeed() {
-            espFetch(API_BASE + '/api/feed/resume', {method: 'POST'})
-                .then(r => r.json())
-                .then(() => loadStatus())
-                .catch(err => console.error('Resume error:', err));
+                .catch(err => console.error('Pause/resume error:', err));
         }
 
         function terminateFeed() {
