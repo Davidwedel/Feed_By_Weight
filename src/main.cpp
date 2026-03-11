@@ -221,6 +221,18 @@ void loop() {
     scheduler.update();
     scheduler.getCurrentTimeStr(systemStatus.currentTime, sizeof(systemStatus.currentTime));
 
+    // Periodic Bin Weight Reading (every 3 seconds, or immediately on first loop)
+    if (millis() - lastBintracRead > 3000 || lastBintracRead == 0) {
+        updateBinWeights();        // Read from BinTrac, apply EMA smoothing
+        lastBintracRead = millis();
+
+        updateSystemStatus();      // Update systemStatus structure for web UI
+        lastStatusUpdate = millis();
+
+        // Blink status LED to show system is alive
+        digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));
+    }
+
     // Update Telegram bot
     if (config.telegramEnabled) {
         telegramBot->update();
@@ -287,22 +299,6 @@ void loop() {
 
     // Handle web server requests
     webServer->handleClient();
-
-    // ========================================
-    // Periodic Bin Weight Reading (every 3 seconds)
-    // ========================================
-    // Read all 4 bins from BinTrac via Modbus TCP, apply EMA smoothing,
-    // then immediately update system status for the web UI.
-    if (millis() - lastBintracRead > 3000) {
-        updateBinWeights();        // Read from BinTrac, apply EMA smoothing
-        lastBintracRead = millis();
-
-        updateSystemStatus();      // Update systemStatus structure for web UI
-        lastStatusUpdate = millis();
-
-        // Blink status LED to show system is alive
-        digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));
-    }
 
     // Run main state machine
     runStateMachine();
