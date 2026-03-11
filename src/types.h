@@ -113,6 +113,7 @@ struct SystemStatus {
     FeedingStage feedingStage;
     unsigned long feedStartTime;
     float currentWeight[4];   // A, B, C, D bins
+	float totalCurrentWeight;
     float weightAtStart;
     float weightDispensed;
     float flowRate;           // lbs/min

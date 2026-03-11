@@ -394,12 +394,7 @@ void FeedWebServer::handleStartFeed(EthernetClient& client) {
         return;
     }
 
-    // Calculate total weight from all bins
-    float totalWeight = 0;
-    for (int i = 0; i < 4; i++) {
-        totalWeight += _status.currentWeight[i];
-    }
-    _status.weightAtStart = totalWeight;
+    _status.weightAtStart = _status.totalCurrentWeight;
 
     _augerControl.startFeeding(_config.feedAmounts[0], _config.chainPreRunTime, _config.maxRuntime, _config.fillDetectionRate, _config.fillSettlingTime, _config.weightFluctuationThreshold);
     _status.state = SystemState::FEEDING;

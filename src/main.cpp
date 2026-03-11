@@ -273,11 +273,7 @@ void loop() {
             } else if (systemStatus.state == SystemState::ALARM) {
                 Serial.println("Telegram /startfeed ignored - in alarm state");
             } else {
-                float totalWeight = 0;
-                for (int i = 0; i < 4; i++) {
-                    totalWeight += systemStatus.currentWeight[i];
-                }
-                systemStatus.weightAtStart = totalWeight;
+                systemStatus.weightAtStart = systemStatus.totalCurrentWeight;
                 currentFeedTarget = telegramBot->getStartFeedWeight();
                 currentFeedCycle = 0;
 
@@ -444,11 +440,12 @@ void updateBinWeights() {
             }
         }
 
-        // Calculate total weight across all bins and add to ring buffer
+        // Calculate total weight across all bins
+		systemStatus.totalCurrentWeight = 0;
+        for (int i = 0; i < 4; i++) systemStatus.totalCurrentWeight += systemStatus.currentWeight[i];
+
         // (weightLog is used by web UI to show recent weight trends)
-        float total = 0;
-        for (int i = 0; i < 4; i++) total += systemStatus.currentWeight[i];
-        weightLog.add(millis(), systemStatus.currentWeight, total);
+        weightLog.add(millis(), systemStatus.currentWeight, systemStatus.totalCurrentWeight);
 
         // Debug: print weights every read
         static int readCount = 0;
@@ -555,11 +552,7 @@ void runStateMachine() {
                     Serial.printf("Starting scheduled feeding cycle %d\n", currentFeedCycle + 1);
 
                     // Capture starting weight from all bins
-                    float totalWeight = 0;
-                    for (int i = 0; i < 4; i++) {
-                        totalWeight += systemStatus.currentWeight[i];
-                    }
-                    systemStatus.weightAtStart = totalWeight;
+                    systemStatus.weightAtStart = systemStatus.totalCurrentWeight;
 
                     // Calculate target for this feeding
                     // Note: Last feed of the day auto-balances to hit dailyTotal exactly
@@ -587,14 +580,8 @@ void runStateMachine() {
             // AugerControl manages the 2-stage sequence and returns its current stage.
             // We check for completion/failure/termination and handle accordingly.
 
-            // Calculate current total weight from all bins
-            float totalWeight = 0;
-            for (int i = 0; i < 4; i++) {
-                totalWeight += systemStatus.currentWeight[i];
-            }
-
             // Update auger control (returns current stage: CHAIN_ONLY, BOTH_RUNNING, COMPLETED, etc.)
-            FeedingStage stage = augerControl.update(totalWeight);
+            FeedingStage stage = augerControl.update(systemStatus.totalCurrentWeight);
 
             // Check for warnings (low feed rate, weight reading failures, etc.)
             const char* warning = augerControl.getNewWarning();
