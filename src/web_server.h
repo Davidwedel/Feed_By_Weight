@@ -52,6 +52,8 @@ private:
     void handleGetWeightLog(EthernetClient& client);
     void handleBackupHistory(EthernetClient& client);
     void handleRestoreHistory(EthernetClient& client, const String& body);
+    void handleDeleteHistoryEntry(EthernetClient& client, const String& body);
+    void handleReboot(EthernetClient& client);
 
     // Utility functions
     String configToJson();

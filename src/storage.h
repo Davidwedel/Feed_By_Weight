@@ -19,6 +19,7 @@ public:
     bool addFeedEvent(const FeedEvent& event);
     bool getFeedHistory(FeedEvent* events, int& count, int maxCount = 50);
     bool clearHistory();
+    bool deleteHistoryEntry(time_t timestamp);
     bool writeRawHistory(const String& csvData);
 
     // Feed progress (NVS) - survives LittleFS wipe

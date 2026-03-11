@@ -291,6 +291,44 @@ void Storage::trimHistory(int maxEntries) {
     Serial.printf("History trimmed: removed %d oldest entries, kept %d\n", skip, maxEntries);
 }
 
+bool Storage::deleteHistoryEntry(time_t timestamp) {
+    if (!_initialized) return false;
+    if (!LittleFS.exists(HISTORY_FILE)) return true;
+
+    File file = LittleFS.open(HISTORY_FILE, "r");
+    if (!file) return false;
+    String content = file.readString();
+    file.close();
+
+    String newContent = "";
+    int pos = 0;
+    while (pos < (int)content.length()) {
+        int nl = content.indexOf('\n', pos);
+        String line;
+        if (nl == -1) {
+            line = content.substring(pos);
+            pos = content.length();
+        } else {
+            line = content.substring(pos, nl);
+            pos = nl + 1;
+        }
+        line.trim();
+        if (line.length() == 0) continue;
+
+        int comma = line.indexOf(',');
+        time_t ts = (comma > 0) ? (time_t)line.substring(0, comma).toInt() : 0;
+        if (ts != timestamp) {
+            newContent += line + "\n";
+        }
+    }
+
+    file = LittleFS.open(HISTORY_FILE, "w");
+    if (!file) return false;
+    file.print(newContent);
+    file.close();
+    return true;
+}
+
 bool Storage::clearHistory() {
     if (!_initialized) return false;
 

@@ -406,6 +406,7 @@
                         <th>Actual</th>
                         <th>Duration</th>
                         <th>Status</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody id="historyBody">
@@ -419,6 +420,11 @@
             <a href="weightlog">
                 <button type="button" style="font-size: 1.1em; padding: 15px 40px;">View Weight Log</button>
             </a>
+        </div>
+
+        <!-- Reboot -->
+        <div class="card" style="text-align: center;">
+            <button onclick="rebootESP()" class="danger" style="font-size: 1.1em; padding: 15px 40px;">Reboot ESP32</button>
         </div>
     </div>
 
@@ -701,6 +707,13 @@
                         row.insertCell(4).textContent = mins + ':' + String(secs).padStart(2, '0');
                         row.insertCell(5).textContent = event.alarmTriggered ?
                             'ALARM: ' + event.alarmReason : 'OK';
+                        const delCell = row.insertCell(6);
+                        const delBtn = document.createElement('button');
+                        delBtn.textContent = 'Delete';
+                        delBtn.className = 'danger';
+                        delBtn.style.cssText = 'padding:4px 10px;margin:0;font-size:0.85em;';
+                        delBtn.onclick = () => deleteHistoryEntry(event.timestamp);
+                        delCell.appendChild(delBtn);
                     });
                 })
                 .catch(err => { if (err !== 'busy') console.error('History fetch error:', err); });
@@ -712,6 +725,26 @@
                     .then(r => r.json())
                     .then(() => loadHistory())
                     .catch(err => console.error('Clear history error:', err));
+            }
+        }
+
+        function deleteHistoryEntry(timestamp) {
+            if (confirm('Delete this feed log entry?')) {
+                espFetch(API_BASE + '/api/history/delete', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({timestamp: timestamp})
+                })
+                .then(r => r.json())
+                .then(() => loadHistory())
+                .catch(err => console.error('Delete entry error:', err));
+            }
+        }
+
+        function rebootESP() {
+            if (confirm('Reboot the ESP32? The system will be offline for a few seconds.')) {
+                espFetch(API_BASE + '/api/reboot', {method: 'POST'})
+                    .catch(() => {});
             }
         }
     </script>

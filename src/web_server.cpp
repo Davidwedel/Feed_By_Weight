@@ -129,6 +129,10 @@ void FeedWebServer::handleRequest(EthernetClient& client) {
             handleClearAlarm(client);
         } else if (path == "/api/history/restore") {
             handleRestoreHistory(client, body);
+        } else if (path == "/api/history/delete") {
+            handleDeleteHistoryEntry(client, body);
+        } else if (path == "/api/reboot") {
+            handleReboot(client);
         } else {
             sendNotFound(client);
         }
@@ -680,6 +684,30 @@ void FeedWebServer::handleRestoreHistory(EthernetClient& client, const String& b
     } else {
         sendResponse(client, 500, "application/json", "{\"error\":\"Failed to write history\"}");
     }
+}
+
+void FeedWebServer::handleDeleteHistoryEntry(EthernetClient& client, const String& body) {
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, body);
+    if (error || !doc["timestamp"].is<long>()) {
+        sendResponse(client, 400, "application/json", "{\"error\":\"Missing timestamp\"}");
+        return;
+    }
+    time_t ts = (time_t)(long)doc["timestamp"];
+    if (_storage.deleteHistoryEntry(ts)) {
+        historyChanged = true;
+        sendJsonResponse(client, "{\"success\":true}");
+    } else {
+        sendResponse(client, 500, "application/json", "{\"error\":\"Failed to delete entry\"}");
+    }
+}
+
+void FeedWebServer::handleReboot(EthernetClient& client) {
+    sendJsonResponse(client, "{\"success\":true,\"message\":\"Rebooting...\"}");
+    client.flush();
+    client.stop();
+    delay(500);
+    ESP.restart();
 }
 
 String FeedWebServer::historyToJson() {
