@@ -46,9 +46,6 @@ private:
 
     // Get current time in minutes from midnight (local time)
     uint16_t getCurrentMinutes();
-
-    // Reset daily tracking at midnight
-    void checkDayRollover();
 };
 
 #endif // SCHEDULER_H

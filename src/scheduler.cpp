@@ -136,8 +136,28 @@ void Scheduler::startNTPSync() {
 
 void Scheduler::update() {
     // Check for day rollover to reset feeding completions
-    if (isTimeSynced()) {
-        checkDayRollover();
+    if (!isTimeSynced()) return;
+
+    struct tm timeinfo;
+    // Get UTC time and apply manual timezone offset to get local time
+    time_t now = getCurrentTime() + (_timezoneOffset * 3600);
+    gmtime_r(&now, &timeinfo);
+
+    uint8_t currentDay = timeinfo.tm_mday;  // Day of month (1-31)
+
+    if (_lastDay == 0) {
+        // First call after boot - initialize tracking
+        _lastDay = currentDay;
+        return;
+    }
+
+    if (currentDay != _lastDay) {
+        // New day detected - reset all feeding completion flags
+        Serial.println("New day detected - resetting feeding schedule");
+        for (int i = 0; i < 4; i++) {
+            _feedingCompleted[i] = false;
+        }
+        _lastDay = currentDay;
     }
 }
 
@@ -237,31 +257,6 @@ uint16_t Scheduler::getCurrentMinutes() {
     gmtime_r(&now, &timeinfo);
 
     return timeToMinutes(timeinfo.tm_hour, timeinfo.tm_min);
-}
-
-void Scheduler::checkDayRollover() {
-    if (!isTimeSynced()) return;
-
-    struct tm timeinfo;
-    // Get UTC time and apply manual offset
-    time_t now = getCurrentTime() + (_timezoneOffset * 3600);
-    gmtime_r(&now, &timeinfo);
-
-    uint8_t currentDay = timeinfo.tm_mday;
-
-    if (_lastDay == 0) {
-        _lastDay = currentDay;
-        return;
-    }
-
-    if (currentDay != _lastDay) {
-        // New day - reset all feeding completions
-        Serial.println("New day detected - resetting feeding schedule");
-        for (int i = 0; i < 4; i++) {
-            _feedingCompleted[i] = false;
-        }
-        _lastDay = currentDay;
-    }
 }
 
 uint16_t Scheduler::timeToMinutes(uint8_t hour, uint8_t minute) {
