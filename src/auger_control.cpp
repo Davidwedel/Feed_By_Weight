@@ -55,38 +55,61 @@ void AugerControl::begin() {
     Serial.println("Auger and chain control initialized");
 }
 
+/**
+ * START FEEDING SEQUENCE
+ *
+ * Initiates a 2-stage feeding sequence:
+ * 1. Chain runs alone for chainPreRunTime seconds (moves feed toward auger)
+ * 2. Both auger + chain run together until targetWeight is dispensed
+ *
+ * Also configures:
+ * - Bin fill detection (pauses feeding if weight increases rapidly)
+ * - Safety monitoring (low flow rate warnings, max runtime alarm)
+ * - Warning flags (reset for new feeding cycle)
+ */
 void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate, uint16_t fillSettlingMinutes, float fluctuationThreshold) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
     }
 
+    // Store feeding parameters
     _targetWeight = targetWeight;
     _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
-    _fillDetectionRate = fillDetectionRate;
-    _fluctuationThreshold = fluctuationThreshold;
-    _fillSettlingTime = fillSettlingMinutes * 60;  // convert minutes to seconds internally
+    _fillDetectionRate = fillDetectionRate;            // lb/min increase = bin fill
+    _fluctuationThreshold = fluctuationThreshold;      // lb, for detecting weight stabilization
+    _fillSettlingTime = fillSettlingMinutes * 60;      // convert minutes to seconds internally
+
+    // Initialize timing
     _feedStartTime = millis();
     _chainStartTime = millis();
     _lastWeightCheck = millis();
     _minuteStartTime = millis();
-    _startWeight = 0;  // Will be set on first update
+
+    // Initialize weight tracking (startWeight set on first update() call)
+    _startWeight = 0;
     _weightDispensed = 0;
+    _lastWeight = 0;
+
+    // Reset all warning/alarm flags for new feeding cycle
     _alarmTriggered = false;
     _warningPending = false;
     _warnedWeightFail = false;
     _warnedNoChange = false;
     _warnedIncrease = false;
     _warnedLowRate = false;
-    _lastWeight = 0;
+    strcpy(_alarmReason, "");
+
+    // Reset bin fill detection tracking
     _fillInProgress = false;
     _fillStabilizedTime = 0;
     _fillRateWeight = 0;
     _fillRateStartTime = 0;
-    strcpy(_alarmReason, "");
 
-    // Start with chain only
+    // ========================================
+    // Stage 1: Start chain only (auger stays off)
+    // ========================================
     _stage = FeedingStage::CHAIN_ONLY;
     Serial.println("About to start chain...");
     controlChain(true);
@@ -95,26 +118,43 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
                   targetWeight, chainPreRunTime, maxRuntime);
 }
 
+/**
+ * UPDATE FEEDING STATE MACHINE
+ *
+ * Called every loop (~100Hz) from main.cpp while in FEEDING state.
+ * Manages the feeding sequence, monitors safety conditions, detects bin fills.
+ *
+ * State flow:
+ * CHAIN_ONLY → (timer) → BOTH_RUNNING → (target reached) → COMPLETED
+ *                                     → (max runtime) → FAILED
+ *                                     → (bin fill detected) → PAUSED_FOR_FILL → resume
+ *
+ * Returns current stage so main.cpp can handle completion/failure.
+ */
 FeedingStage AugerControl::update(float currentTotalWeight) {
+    // Don't update if not in an active feeding stage
     if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED
         || _stage == FeedingStage::FAILED || _stage == FeedingStage::PAUSED_MANUAL
         || _stage == FeedingStage::TERMINATED) {
         return _stage;
     }
 
-    // Check if weight reading failed (0 or negative usually means read error)
+    // ========================================
+    // Weight Reading Validation
+    // ========================================
+    // BinTrac read failures show as 0 or negative. Use last valid weight to continue.
     if (currentTotalWeight <= 0) {
         if (!_warnedWeightFail) {
             sendWarning("Weight reading failed - continuing until max runtime");
             _warnedWeightFail = true;
         }
         _weightReadingFailed = true;
-        // Use last valid weight if available
+        // Fall back to last valid weight if available
         if (_lastValidWeight > 0) {
             currentTotalWeight = _lastValidWeight;
         }
     } else {
-        // Check if problem cleared
+        // Weight reading restored
         if (_weightReadingFailed && _warnedWeightFail) {
             sendWarning("Weight reading restored");
             _warnedWeightFail = false;
@@ -123,20 +163,26 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
         _lastValidWeight = currentTotalWeight;
     }
 
-    // Initialize start weight on first update
+    // Initialize start weight on first update call (can't set in startFeeding because
+    // we don't have current weight there - main.cpp passes it to us)
     if (_startWeight == 0 && currentTotalWeight > 0) {
         _startWeight = currentTotalWeight;
         _weightAtMinuteStart = currentTotalWeight;
         Serial.printf("Start weight initialized: %.2f lbs\n", _startWeight);
     }
 
-    // Calculate weight dispensed (weight should decrease as feed goes out)
+    // Calculate weight dispensed (bins get lighter as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
 
-    // Rate-based bin fill detection (only if not already paused)
+    // ========================================
+    // Bin Fill Detection
+    // ========================================
+    // If weight is increasing rapidly (someone filling the bins manually or via truck),
+    // pause feeding to avoid incorrect weight measurements.
+    // Evaluates weight change rate every 10 seconds.
     if (_stage != FeedingStage::PAUSED_FOR_FILL) {
         if (_fillRateStartTime == 0) {
-            // Initialize rate tracking window
+            // Initialize 10-second rate tracking window
             _fillRateWeight = currentTotalWeight;
             _fillRateStartTime = millis();
         } else {
@@ -146,8 +192,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 float elapsedMinutes = rateElapsed / 60000.0;
                 float ratePerMinute = weightChange / elapsedMinutes;
 
+                // Check if weight increasing faster than threshold (e.g., 20 lb/min)
                 if (ratePerMinute > _fillDetectionRate) {
-                    // Weight increasing faster than threshold — bin fill detected
+                    // Bin fill detected - pause feeding until weight stabilizes
                     _stageBeforePause = _stage;
                     controlAuger(false);
                     controlChain(false);
@@ -161,25 +208,32 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     return _stage;
                 }
 
-                // Reset window for next evaluation
+                // Reset 10-second window for next evaluation
                 _fillRateWeight = currentTotalWeight;
                 _fillRateStartTime = millis();
             }
         }
     }
 
-    unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // seconds
+    unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
+    // ========================================
+    // Feeding Stage State Machine
+    // ========================================
     switch (_stage) {
         case FeedingStage::CHAIN_ONLY:
-            // Check if chain pre-run time has elapsed
+            // ========================================
+            // Stage 1: Chain running alone (auger still off)
+            // ========================================
+            // Purpose: Move feed along the chain toward the auger inlet before
+            // starting the auger. Prevents auger from running empty.
             if ((millis() - _chainStartTime) / 1000 >= _chainPreRunTime) {
-                // Start auger as well
+                // Pre-run time elapsed - start auger too
                 Serial.printf("Chain pre-run complete (%ds), starting auger...\n", _chainPreRunTime);
                 controlAuger(true);
                 _stage = FeedingStage::BOTH_RUNNING;
 
-                // Reset timing for safety monitoring to start fresh
+                // Reset timing for safety monitoring (start fresh from when both running)
                 _bothRunningStartTime = millis();
                 _minuteStartTime = millis();
                 _weightAtMinuteStart = currentTotalWeight;
@@ -189,9 +243,15 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             break;
 
         case FeedingStage::BOTH_RUNNING:
-            // Check safety conditions (sends warnings, doesn't stop)
+            // ========================================
+            // Stage 2: Both auger + chain running
+            // ========================================
+            // Main feeding stage. Monitor weight dispensed and check for completion.
+
+            // Check non-critical safety warnings (won't stop feeding, just warns)
             checkSafety(currentTotalWeight);
-            // Check if target weight reached
+
+            // Check if target weight reached (SUCCESS CONDITION)
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
                 _lastWeightCheck = millis();
@@ -201,7 +261,11 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 return _stage;
             }
 
-            // Check for warning condition (insufficient feed rate) - every minute
+            // ========================================
+            // Low Feed Rate Warning (every minute)
+            // ========================================
+            // If dispensing less than threshold lb/min, warn but don't stop.
+            // Could indicate bin getting empty or mechanical jam.
             if (millis() - _minuteStartTime >= 60000) {
                 float weightPerMinute = _weightAtMinuteStart - currentTotalWeight;
 
@@ -211,46 +275,59 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                         _warnedLowRate = true;
                     }
                 } else if (_warnedLowRate) {
-                    // Feed rate improved
+                    // Feed rate improved - clear warning
                     sendWarning("Feed rate normal");
                     _warnedLowRate = false;
                 }
 
+                // Reset 1-minute tracking window
                 _weightAtMinuteStart = currentTotalWeight;
                 _minuteStartTime = millis();
             }
 
-            // Check maximum runtime - ONLY failure condition
+            // ========================================
+            // Maximum Runtime Check (FAILURE CONDITION)
+            // ========================================
+            // Only hard failure condition. Prevents infinite feeding if something
+            // goes wrong (broken scale, jammed auger, etc.)
             if (elapsed >= _maxRuntime) {
                 triggerAlarm("Maximum runtime exceeded");
             }
             break;
 
         case FeedingStage::PAUSED_FOR_FILL:
-            // Monitor weight to detect when filling stops
+            // ========================================
+            // Paused due to bin fill in progress
+            // ========================================
+            // Motors are stopped. Monitor weight to detect when filling finishes,
+            // then wait for settling time before resuming.
+
             if (currentTotalWeight > _lastWeightDuringPause + _fluctuationThreshold) {
-                // Weight still increasing - reset stabilization timer
+                // Weight still increasing - bin fill still happening
                 _lastWeightDuringPause = currentTotalWeight;  // Update tracking weight
-                _fillStabilizedTime = 0;
+                _fillStabilizedTime = 0;  // Reset settling timer
             } else {
-                // Weight stable or decreasing
+                // Weight stable (not increasing more than fluctuation threshold)
                 if (_fillStabilizedTime == 0) {
-                    // Start settling countdown
+                    // Start settling countdown (wait for weight to fully settle)
                     _fillStabilizedTime = millis();
                 }
 
-                // Check if settling time has elapsed
+                // Check if weight has been stable for the full settling time
                 unsigned long settleElapsed = (millis() - _fillStabilizedTime) / 1000;
                 if (settleElapsed >= _fillSettlingTime) {
-                    // Resume feeding
+                    // ========================================
+                    // Resume feeding after bin fill
+                    // ========================================
                     _fillInProgress = false;
 
-                    // Adjust baseline weight to preserve already-dispensed amount
-                    // Calculate gain from when we paused, not from original start
+                    // Adjust baseline weight to preserve already-dispensed amount.
+                    // If bins gained 100 lbs during pause, add 100 to _startWeight
+                    // so _weightDispensed calculation remains correct.
                     float weightGain = currentTotalWeight - _weightWhenPaused;
-                    _startWeight += weightGain;  // Add the gained weight to baseline
+                    _startWeight += weightGain;
 
-                    // Reset tracking to prevent immediate re-trigger
+                    // Reset tracking to prevent immediate re-trigger of fill detection
                     _lastWeight = currentTotalWeight;
                     _fillRateWeight = currentTotalWeight;
                     _fillRateStartTime = millis();
@@ -258,10 +335,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     Serial.printf("Feed RESUMED after bin fill (+%.2f lbs, settled for %ds)\n",
                                  weightGain, _fillSettlingTime);
 
-                    // Resume to previous stage
+                    // Resume to whatever stage we were in before pause
                     _stage = _stageBeforePause;
 
-                    // Restart appropriate motors
+                    // Restart appropriate motors based on which stage we're resuming to
                     if (_stage == FeedingStage::CHAIN_ONLY) {
                         controlChain(true);
                     } else if (_stage == FeedingStage::BOTH_RUNNING) {
@@ -295,12 +372,18 @@ void AugerControl::stopAll() {
     _stage = FeedingStage::STOPPED;
 }
 
+/**
+ * MANUAL PAUSE/RESUME
+ *
+ * Allows user to pause feeding via web UI (different from auto-pause for bin fill).
+ * Remembers which stage we were in and resumes there.
+ */
 void AugerControl::pauseFeeding() {
     if (_stage != FeedingStage::CHAIN_ONLY && _stage != FeedingStage::BOTH_RUNNING) {
         Serial.println("Cannot pause - not actively feeding");
         return;
     }
-    _stageBeforePause = _stage;
+    _stageBeforePause = _stage;  // Remember where we were
     controlAuger(false);
     controlChain(false);
     _stage = FeedingStage::PAUSED_MANUAL;
@@ -313,19 +396,22 @@ void AugerControl::resumeFeeding() {
         return;
     }
 
+    // Restore previous stage
     _stage = _stageBeforePause;
 
+    // Restart motors appropriate for that stage
     if (_stage == FeedingStage::CHAIN_ONLY) {
         controlChain(true);
     } else if (_stage == FeedingStage::BOTH_RUNNING) {
         controlChain(true);
         controlAuger(true);
+        // Reset monitoring timers
         _bothRunningStartTime = millis();
         _minuteStartTime = millis();
         _weightAtMinuteStart = _lastValidWeight;
     }
 
-    // Reset fill rate tracking to prevent immediate fill detection
+    // Reset fill rate tracking to prevent immediate false fill detection
     _fillRateWeight = _lastValidWeight;
     _fillRateStartTime = millis();
 
@@ -341,18 +427,31 @@ void AugerControl::terminate() {
     Serial.println("Feeding terminated by user");
 }
 
+/**
+ * CHECK SAFETY CONDITIONS
+ *
+ * Called every update() during BOTH_RUNNING stage. Monitors for warning
+ * conditions that don't warrant stopping (just alerting user):
+ *
+ * - No weight change after 30 seconds (bin empty? scale broken? jam?)
+ *
+ * These are warnings only - feeding continues. Only max runtime triggers actual FAILED stage.
+ */
 void AugerControl::checkSafety(float currentWeight) {
     // Calculate elapsed time from when BOTH_RUNNING started (not from chain pre-run)
     unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
 
-    // Check: no weight change after 30 seconds
+    // ========================================
+    // No Weight Change Warning
+    // ========================================
+    // If auger+chain running for 30+ seconds but weight hasn't changed, something's wrong
     if (elapsed > 30 && _weightDispensed < _fluctuationThreshold) {
         if (!_warnedNoChange) {
             sendWarning("No weight change detected - bin may be empty or jammed");
             _warnedNoChange = true;
         }
     } else if (_warnedNoChange && _weightDispensed >= _fluctuationThreshold) {
-        // Weight started changing
+        // Weight started changing - clear warning
         sendWarning("Weight dispensing resumed");
         _warnedNoChange = false;
     }
@@ -416,6 +515,15 @@ void AugerControl::setChain(bool state) {
     controlChain(state);
 }
 
+/**
+ * LOW-LEVEL RELAY CONTROL
+ *
+ * These functions actually control the GPIO pins connected to relay modules.
+ * Each relay controls a motor contactor.
+ *
+ * Auger: 2 relays (RELAY_1_PIN, RELAY_6_PIN) - both controlled together
+ * Chain: 4 relays (RELAY_2_PIN through RELAY_5_PIN) - one per chain feeder line
+ */
 void AugerControl::controlAuger(bool state) {
     digitalWrite(RELAY_1_PIN, state ? HIGH : LOW);
     digitalWrite(RELAY_6_PIN, state ? HIGH : LOW);
