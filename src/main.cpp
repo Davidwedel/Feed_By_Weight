@@ -424,6 +424,11 @@ void updateBinWeights() {
     if (bintrac.readAllBins(rawWeights)) {
         systemStatus.bintracConnected = true;
 
+		// Rolling average: store last 3 readings
+		static float weightHistory[4][3];  // [bin][sample]
+		static int historyIndex = 0;
+		static int historyCount = 0;  // 0-3
+
 		//save for lbs/min calcs
 		unsigned long oldBintracUpdate = systemStatus.lastBintracUpdate;
 		float oldTotalWeight = systemStatus.totalCurrentWeight;
@@ -431,9 +436,22 @@ void updateBinWeights() {
 		//reset lastBintracUpdate
         systemStatus.lastBintracUpdate = millis();
 
-		//update the currentWeights
+		// Store new readings in circular buffer
 		for (int i = 0; i < 4; i++) {
-			systemStatus.currentWeight[i] = rawWeights[i];
+			weightHistory[i][historyIndex] = rawWeights[i];
+		}
+
+		// Advance circular buffer index
+		historyIndex = (historyIndex + 1) % 3;
+		if (historyCount < 3) historyCount++;
+
+		// Calculate rolling average for each bin
+		for (int i = 0; i < 4; i++) {
+			float sum = 0;
+			for (int j = 0; j < historyCount; j++) {
+				sum += weightHistory[i][j];
+			}
+			systemStatus.currentWeight[i] = sum / historyCount;
 		}
 
         // Calculate total weight across all bins
