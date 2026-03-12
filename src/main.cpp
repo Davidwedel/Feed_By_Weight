@@ -827,40 +827,17 @@ float calculateFeedTarget(uint8_t feedCycle) {
     // ========================================
     // Last feeding of the day — auto-balance
     // ========================================
+	
     // Calculate how much we've already dispensed today from feed events
-    float alreadyDispensed = 0;
-    FeedEvent events[20];
-    int count = 0;
-    storage.getFeedHistory(events, count, 20);
-
-    // Get today's day-of-year for filtering events
-    unsigned long now = scheduler.getCurrentTime() + (config.timezone * 3600L);
-    struct tm todayInfo;
-    time_t nowTime = (time_t)now;
-    gmtime_r(&nowTime, &todayInfo);
-    int todayDay = todayInfo.tm_yday;
-    int todayYear = todayInfo.tm_year;
-
-    // Sum all feed events from today that occurred before this cycle
-    for (int i = 0; i < count; i++) {
-        unsigned long eventTime = events[i].timestamp + (config.timezone * 3600L);
-        struct tm eventInfo;
-        time_t evTime = (time_t)eventTime;
-        gmtime_r(&evTime, &eventInfo);
-
-        if (eventInfo.tm_yday == todayDay && eventInfo.tm_year == todayYear) {
-            if (events[i].feedCycle < feedCycle) {
-                alreadyDispensed += events[i].actualWeight;
-            }
-        }
-    }
+	// Should already be up to date but why not.
+	calculateTotalDispensedToday();
 
     // Target = remaining amount to hit daily total
-    float remaining = config.dailyTotal - alreadyDispensed;
+    float remaining = config.dailyTotal - totalDispensedToday;
     if (remaining < 0) remaining = 0;  // Don't dispense negative weight!
 
     Serial.printf("Last feed calc: dailyTotal=%.1f, dispensed=%.1f, target=%.1f\n",
-                  config.dailyTotal, alreadyDispensed, remaining);
+                  config.dailyTotal, totalDispensedToday, remaining);
 
     return remaining;
 }
