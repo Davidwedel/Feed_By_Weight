@@ -116,7 +116,11 @@ struct SystemStatus {
 	float totalCurrentWeight;
     float weightAtStart;
     float weightDispensed;
-    float flowRate;           // lbs/min
+
+	//lbs/min. - means that this weight is going up (bin getting filled)
+    float flowRateRaw = 0.0;           // raw rate of change
+	float flowRateSmoothed = 0.0;      // ema smoothed in main.cpp
+
     float totalDispensedToday;
     bool augerRunning;
     bool chainRunning;

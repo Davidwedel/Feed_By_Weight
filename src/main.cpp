@@ -183,7 +183,6 @@ void setup() {
     systemStatus.feedStartTime = 0;
     systemStatus.weightAtStart = 0;
     systemStatus.weightDispensed = 0;
-    systemStatus.flowRate = 0;
     systemStatus.augerRunning = false;
     systemStatus.chainRunning = false;
     systemStatus.bintracConnected = false;
@@ -424,25 +423,40 @@ void updateBinWeights() {
     float rawWeights[4];
     if (bintrac.readAllBins(rawWeights)) {
         systemStatus.bintracConnected = true;
+
+		//save for lbs/min calcs
+		unsigned long oldBintracUpdate = systemStatus.lastBintracUpdate;
+		float oldTotalWeight = systemStatus.totalCurrentWeight;
+
+		//reset lastBintracUpdate
         systemStatus.lastBintracUpdate = millis();
 
-        // Apply EMA smoothing to each bin
-        if (!emaInitialized) {
-            // First reading - initialize with raw values (no history to smooth against)
-            for (int i = 0; i < 4; i++) {
-                systemStatus.currentWeight[i] = rawWeights[i];
-            }
-            emaInitialized = true;
-        } else {
-            // Subsequent readings - apply EMA smoothing
-            for (int i = 0; i < 4; i++) {
-                systemStatus.currentWeight[i] = EMA_ALPHA * rawWeights[i] + (1.0f - EMA_ALPHA) * systemStatus.currentWeight[i];
-            }
-        }
+		//update the currentWeights
+		for (int i = 0; i < 4; i++) {
+			systemStatus.currentWeight[i] = rawWeights[i];
+		}
 
         // Calculate total weight across all bins
 		systemStatus.totalCurrentWeight = 0;
         for (int i = 0; i < 4; i++) systemStatus.totalCurrentWeight += systemStatus.currentWeight[i];
+
+
+        // Calculate rate of change (lbs/min)
+        if (oldBintracUpdate > 0) {  // Skip first reading
+            float timeDeltaMinutes = (systemStatus.lastBintracUpdate -
+  oldBintracUpdate) / 60000.0;
+            float weightChange = oldTotalWeight -
+  systemStatus.totalCurrentWeight;
+            systemStatus.flowRateRaw = weightChange / timeDeltaMinutes;
+
+            // Apply EMA smoothing to the rate
+            if (!emaInitialized) {// initialize
+                systemStatus.flowRateSmoothed = systemStatus.flowRateRaw;
+                emaInitialized = true;
+            } else {
+                systemStatus.flowRateSmoothed = EMA_ALPHA * systemStatus.flowRateRaw + (1.0 - EMA_ALPHA) * systemStatus.flowRateSmoothed; 
+            }
+        }
 
         // (weightLog is used by web UI to show recent weight trends)
         weightLog.add(millis(), systemStatus.currentWeight, systemStatus.totalCurrentWeight);
@@ -486,7 +500,6 @@ void updateSystemStatus() {
     systemStatus.chainRunning = augerControl.isChainRunning();
     systemStatus.feedingStage = augerControl.getStage();
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
-    systemStatus.flowRate = augerControl.getFlowRate();
 
     // Recalculate daily total if history was restored/cleared via web UI
     if (historyChanged && scheduler.isTimeSynced()) {

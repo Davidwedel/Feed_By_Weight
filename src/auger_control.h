@@ -31,7 +31,6 @@ public:
     bool isChainRunning() const { return _chainRunning; }
     FeedingStage getStage() const { return _stage; }
     float getWeightDispensed() const { return _weightDispensed; }
-    float getFlowRate() const;  // lbs/min
     unsigned long getDuration() const;
     bool isAlarmTriggered() const { return _alarmTriggered; }
     const char* getAlarmReason() const { return _alarmReason; }
