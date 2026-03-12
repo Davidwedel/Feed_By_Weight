@@ -653,7 +653,7 @@ void handleFeedingComplete() {
     storage.clearFeedProgress();
 
     // Update running total for today
-    totalDispensedToday += event.actualWeight;
+	calculateTotalDispensedToday();
 
     if (!scheduler.isTimeSynced()) {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");
@@ -703,6 +703,9 @@ void handleFeedingFailed() {
     storage.addFeedEvent(event);
     storage.clearFeedProgress();
 
+    // Update running total for today
+	calculateTotalDispensedToday();
+
     if (!scheduler.isTimeSynced()) {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");
     }
@@ -746,7 +749,8 @@ void handleFeedingTerminated() {
     storage.addFeedEvent(event);
     storage.clearFeedProgress();
 
-    totalDispensedToday += event.actualWeight;
+	//recalculate because we added an event
+	calculateTotalDispensedToday();
 
     scheduler.markFeedingComplete(currentFeedCycle);
 
