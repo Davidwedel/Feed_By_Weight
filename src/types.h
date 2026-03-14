@@ -116,6 +116,7 @@ struct SystemStatus {
 	float totalCurrentWeight;
     float weightAtStart;
     float weightDispensed;
+	float weightHistory[4][10];
 
 	//lbs/min. - means that this weight is going up (bin getting filled)
     float flowRateRaw = 0.0;           // raw rate of change
