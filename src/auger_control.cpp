@@ -1,5 +1,8 @@
 #include "auger_control.h"
 #include "config.h"
+#include "types.h"
+
+extern SystemStatus systemStatus;
 
 AugerControl::AugerControl() {
     _augerRunning = false;
@@ -179,8 +182,48 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // ========================================
     // If weight is increasing rapidly (someone filling the bins manually or via truck),
     // pause feeding to avoid incorrect weight measurements.
-    // Evaluates weight change rate every 10 seconds.
-    if (_stage != FeedingStage::PAUSED_FOR_FILL) {
+
+    // Check last 5 readings for progressive weight increase
+    if (systemStatus.historyCount >= 5 && _stage != FeedingStage::PAUSED_FOR_FILL) {
+        float totalWeights[5];
+
+        // Calculate total weight for each of the last 5 samples
+        for (int i = 0; i < 5; i++) {
+            int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+            totalWeights[i] = 0;
+            for (int bin = 0; bin < 4; bin++) {
+                totalWeights[i] += systemStatus.weightHistory[bin][idx];
+            }
+        }
+
+        // Check if all 5 readings are progressively heavier (increasing trend)
+        // totalWeights[0] is most recent, totalWeights[4] is oldest
+        bool progressiveIncrease = true;
+        for (int i = 0; i < 4; i++) {
+            if (totalWeights[i] <= totalWeights[i + 1]) {
+                progressiveIncrease = false;
+                break;
+            }
+        }
+
+        if (progressiveIncrease) {
+            // Bin fill detected - pause feeding until weight stabilizes
+            _stageBeforePause = _stage;
+            controlAuger(false);
+            controlChain(false);
+            _stage = FeedingStage::PAUSED_FOR_FILL;
+            _fillInProgress = true;
+            _weightWhenPaused = currentTotalWeight;
+            _lastWeightDuringPause = currentTotalWeight;
+            _fillStabilizedTime = 0;
+            Serial.printf("Feed PAUSED - bin fill detected (5 consecutive weight increases)\n");
+            return _stage;
+        }
+    }
+
+
+
+    /*if (_stage != FeedingStage::PAUSED_FOR_FILL) {
         if (_fillRateStartTime == 0) {
             // Initialize 10-second rate tracking window
             _fillRateWeight = currentTotalWeight;
@@ -213,7 +256,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 _fillRateStartTime = millis();
             }
         }
-    }
+    }*/
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 

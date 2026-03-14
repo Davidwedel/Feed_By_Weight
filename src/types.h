@@ -117,6 +117,8 @@ struct SystemStatus {
     float weightAtStart;
     float weightDispensed;
 	float weightHistory[4][10];
+	int historyIndex = 0;        // Circular buffer index (0-9)
+	int historyCount = 0;        // Number of samples in history (0-10)
 
 	//lbs/min. - means that this weight is going up (bin getting filled)
     float flowRateRaw = 0.0;           // raw rate of change
