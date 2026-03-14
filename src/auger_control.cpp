@@ -90,10 +90,25 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _lastWeightCheck = millis();
     _minuteStartTime = millis();
 
-    // Initialize weight tracking (startWeight set on first update() call)
+    // Calculate start weight as average of last N readings from history
     _startWeight = 0;
+
+    if (systemStatus.historyCount > 0) {
+        for (int i = 0; i < systemStatus.historyCount; i++) {
+            int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+            _startWeight += systemStatus.weightHistory[idx];
+        }
+        _startWeight /= systemStatus.historyCount;
+        Serial.printf("Start weight: %.2f lbs (average of %d samples)\n", _startWeight, systemStatus.historyCount);
+    } else {
+        // No history available - use current total weight
+        _startWeight = systemStatus.totalCurrentWeight;
+        Serial.printf("Start weight: %.2f lbs (no history available)\n", _startWeight);
+    }
+
     _weightDispensed = 0;
-    _lastWeight = 0;
+    _lastWeight = _startWeight;
+    _weightAtMinuteStart = _startWeight;
 
     // Reset all warning/alarm flags for new feeding cycle
     _alarmTriggered = false;
@@ -164,14 +179,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
         }
         _weightReadingFailed = false;
         _lastValidWeight = currentTotalWeight;
-    }
-
-    // Initialize start weight on first update call (can't set in startFeeding because
-    // we don't have current weight there - main.cpp passes it to us)
-    if (_startWeight == 0 && currentTotalWeight > 0) {
-        _startWeight = currentTotalWeight;
-        _weightAtMinuteStart = currentTotalWeight;
-        Serial.printf("Start weight initialized: %.2f lbs\n", _startWeight);
     }
 
     // Calculate weight dispensed (bins get lighter as feed goes out)
