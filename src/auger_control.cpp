@@ -185,22 +185,13 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
     // Check last 5 readings for progressive weight increase
     if (systemStatus.historyCount >= 5 && _stage != FeedingStage::PAUSED_FOR_FILL) {
-        float totalWeights[5];
-
-        // Calculate total weight for each of the last 5 samples
-        for (int i = 0; i < 5; i++) {
-            int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
-            totalWeights[i] = 0;
-            for (int bin = 0; bin < 4; bin++) {
-                totalWeights[i] += systemStatus.weightHistory[bin][idx];
-            }
-        }
-
-        // Check if all 5 readings are progressively heavier (increasing trend)
-        // totalWeights[0] is most recent, totalWeights[4] is oldest
+        // Check if last 5 readings are progressively heavier (indicating bin fill)
         bool progressiveIncrease = true;
         for (int i = 0; i < 4; i++) {
-            if (totalWeights[i] <= totalWeights[i + 1]) {
+            int newerIdx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+            int olderIdx = (systemStatus.historyIndex - 2 - i + 10) % 10;
+
+            if (systemStatus.weightHistory[newerIdx] <= systemStatus.weightHistory[olderIdx]) {
                 progressiveIncrease = false;
                 break;
             }

@@ -42,7 +42,7 @@ volatile bool historyChanged = false;// Flag set when history is restored/cleare
 // We use Exponential Moving Average (EMA) to smooth noisy bin weight readings
 bool emaInitialized = false;         // True after first weight reading
 WeightLog weightLog;                 // Ring buffer of recent weight readings for web UI
-const float EMA_ALPHA = 0.3;         // EMA smoothing factor (0.3 = 30% new, 70% old)
+const float EMA_ALPHA = 0.2;         // EMA smoothing factor (0.3 = 30% new, 70% old)
 
 // Function declarations
 void setupNetwork();
@@ -420,11 +420,8 @@ void setupNetwork() {
  * With alpha=0.3, we get 30% responsiveness to new readings while filtering noise.
  */
 void updateBinWeights() {
-    float rawWeights[4];
-    if (bintrac.readAllBins(rawWeights)) {
+    if (bintrac.readAllBins(systemStatus.currentWeight)) {
         systemStatus.bintracConnected = true;
-
-		// Rolling average: store last 3 readings
 
 		//save for lbs/min calcs
 		unsigned long oldBintracUpdate = systemStatus.lastBintracUpdate;
@@ -433,32 +430,25 @@ void updateBinWeights() {
 		//reset lastBintracUpdate
         systemStatus.lastBintracUpdate = millis();
 
-		// Store new readings in circular buffer
-		for (int i = 0; i < 4; i++) {
-			systemStatus.weightHistory[i][systemStatus.historyIndex] = rawWeights[i];
-		}
+        // Calculate total weight across all bins
+		//systemStatus.totalCurrentWeight = 0;
+		float newTotal = 0;
+        for (int i = 0; i < 4; i++) newTotal += systemStatus.currentWeight[i];
+
+		//ema smooth totalCurrentWeight
+        if (!emaInitialized) {// initialize
+            systemStatus.totalCurrentWeight = newTotal;
+            emaInitialized = true;
+        } else {
+            systemStatus.totalCurrentWeight = EMA_ALPHA * newTotal + (1.0 - EMA_ALPHA) * systemStatus.totalCurrentWeight; 
+        }
+
+		// Store new totalCurrentWeight in circular buffer
+		systemStatus.weightHistory[systemStatus.historyIndex] = systemStatus.totalCurrentWeight;
 
 		// Advance circular buffer index
 		systemStatus.historyIndex = (systemStatus.historyIndex + 1) % 10;
 		if (systemStatus.historyCount < 10) systemStatus.historyCount++;
-
-		// Calculate rolling average for each bin (last 3 samples)
-		for (int i = 0; i < 4; i++) {
-			float sum = 0;
-			int samplesToAverage = (systemStatus.historyCount < 3) ? systemStatus.historyCount : 3;
-
-			// Get last 3 samples from circular buffer (working backwards from current index)
-			for (int j = 0; j < samplesToAverage; j++) {
-				int idx = (systemStatus.historyIndex - 1 - j + 10) % 10;
-				sum += systemStatus.weightHistory[i][idx];
-			}
-			systemStatus.currentWeight[i] = sum / samplesToAverage;
-		}
-
-        // Calculate total weight across all bins
-		systemStatus.totalCurrentWeight = 0;
-        for (int i = 0; i < 4; i++) systemStatus.totalCurrentWeight += systemStatus.currentWeight[i];
-
 
         // Calculate rate of change (lbs/min)
         if (oldBintracUpdate > 0) {  // Skip first reading
@@ -466,15 +456,7 @@ void updateBinWeights() {
   oldBintracUpdate) / 60000.0;
             float weightChange = oldTotalWeight -
   systemStatus.totalCurrentWeight;
-            systemStatus.flowRateRaw = weightChange / timeDeltaMinutes;
-
-            // Apply EMA smoothing to the rate
-            if (!emaInitialized) {// initialize
-                systemStatus.flowRateSmoothed = systemStatus.flowRateRaw;
-                emaInitialized = true;
-            } else {
-                systemStatus.flowRateSmoothed = EMA_ALPHA * systemStatus.flowRateRaw + (1.0 - EMA_ALPHA) * systemStatus.flowRateSmoothed; 
-            }
+            systemStatus.flowRate = weightChange / timeDeltaMinutes;
         }
 
         // (weightLog is used by web UI to show recent weight trends)
