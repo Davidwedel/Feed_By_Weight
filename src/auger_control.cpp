@@ -212,43 +212,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
         }
     }
 
-
-
-    /*if (_stage != FeedingStage::PAUSED_FOR_FILL) {
-        if (_fillRateStartTime == 0) {
-            // Initialize 10-second rate tracking window
-            _fillRateWeight = currentTotalWeight;
-            _fillRateStartTime = millis();
-        } else {
-            unsigned long rateElapsed = millis() - _fillRateStartTime;
-            if (rateElapsed >= 10000) {  // Evaluate rate every 10 seconds
-                float weightChange = currentTotalWeight - _fillRateWeight;
-                float elapsedMinutes = rateElapsed / 60000.0;
-                float ratePerMinute = weightChange / elapsedMinutes;
-
-                // Check if weight increasing faster than threshold (e.g., 20 lb/min)
-                if (ratePerMinute > _fillDetectionRate) {
-                    // Bin fill detected - pause feeding until weight stabilizes
-                    _stageBeforePause = _stage;
-                    controlAuger(false);
-                    controlChain(false);
-                    _stage = FeedingStage::PAUSED_FOR_FILL;
-                    _fillInProgress = true;
-                    _weightWhenPaused = currentTotalWeight;
-                    _lastWeightDuringPause = currentTotalWeight;
-                    _fillStabilizedTime = 0;
-                    Serial.printf("Feed PAUSED - bin fill detected (%.1f lb/min > %.1f lb/min threshold)\n",
-                                  ratePerMinute, _fillDetectionRate);
-                    return _stage;
-                }
-
-                // Reset 10-second window for next evaluation
-                _fillRateWeight = currentTotalWeight;
-                _fillRateStartTime = millis();
-            }
-        }
-    }*/
-
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
     // ========================================
