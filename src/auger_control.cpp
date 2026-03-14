@@ -15,6 +15,7 @@ AugerControl::AugerControl() {
     _chainStartTime = 0;
     _bothRunningStartTime = 0;
     _lastWeightCheck = 0;
+    _postAveragingStartTime = 0;
     _alarmTriggered = false;
     _chainPreRunTime = 10;
     _maxRuntime = 600;
@@ -143,7 +144,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
  * Manages the feeding sequence, monitors safety conditions, detects bin fills.
  *
  * State flow:
- * CHAIN_ONLY → (timer) → BOTH_RUNNING → (target reached) → COMPLETED
+ * CHAIN_ONLY → (timer) → BOTH_RUNNING → (target reached) → POST_AVERAGING → (60s) → COMPLETED
  *                                     → (max runtime) → FAILED
  *                                     → (bin fill detected) → PAUSED_FOR_FILL → resume
  *
@@ -190,21 +191,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // If weight is increasing rapidly (someone filling the bins manually or via truck),
     // pause feeding to avoid incorrect weight measurements.
 
-    // Check last 5 readings for progressive weight increase
-    if (systemStatus.historyCount >= 5 && _stage != FeedingStage::PAUSED_FOR_FILL) {
-        // Check if last 5 readings are progressively heavier (indicating bin fill)
-        bool progressiveIncrease = true;
-        for (int i = 0; i < 4; i++) {
-            int newerIdx = (systemStatus.historyIndex - 1 - i + 10) % 10;
-            int olderIdx = (systemStatus.historyIndex - 2 - i + 10) % 10;
-
-            if (systemStatus.weightHistory[newerIdx] <= systemStatus.weightHistory[olderIdx]) {
-                progressiveIncrease = false;
-                break;
-            }
-        }
-
-        if (progressiveIncrease) {
+    // Check for bin fill during active feeding stages
+    // Skip during PAUSED_FOR_FILL and POST_AVERAGING (POST_AVERAGING handles bin fills differently)
+    if (_stage != FeedingStage::PAUSED_FOR_FILL && _stage != FeedingStage::POST_AVERAGING) {
+        if (detectBinFill()) {
             // Bin fill detected - pause feeding until weight stabilizes
             _stageBeforePause = _stage;
             controlAuger(false);
@@ -258,9 +248,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Check if target weight reached (SUCCESS CONDITION)
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
-                _lastWeightCheck = millis();
-                _stage = FeedingStage::COMPLETED;
-                Serial.printf("Feeding completed: Dispensed=%.2f in %lus\n",
+                _postAveragingStartTime = millis();
+                _stage = FeedingStage::POST_AVERAGING;
+                Serial.printf("Target reached: Dispensed=%.2f in %lus. Starting post-averaging (60s)...\n",
                              _weightDispensed, elapsed);
                 return _stage;
             }
@@ -360,6 +350,50 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             }
             break;
 
+        case FeedingStage::POST_AVERAGING:
+            // ========================================
+            // Post-Averaging: Motors stopped, waiting for weight to settle
+            // ========================================
+            // After target weight reached, wait 60 seconds for bins to settle,
+            // then use averaged weight for final dispensed calculation.
+            // Continue monitoring for bin fills - if detected, use oldest reading.
+
+            {
+                unsigned long postElapsed = (millis() - _postAveragingStartTime) / 1000;
+
+                // Check if bin fill started during settling period
+                if (detectBinFill()) {
+                    // Bin fill detected during settling - use oldest available reading
+                    int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + 10) % 10;
+                    float endWeight = systemStatus.weightHistory[oldestIdx];
+                    _weightDispensed = _startWeight - endWeight;
+                    _stage = FeedingStage::COMPLETED;
+                    Serial.printf("Bin fill detected during post-averaging. Using oldest reading. Final dispensed: %.2f lbs\n",
+                                 _weightDispensed);
+                    return _stage;
+                }
+
+                // Check if 60 seconds elapsed
+                if (postElapsed >= 60) {
+                    // Average last N readings for final weight
+                    float endWeight = 0;
+                    int samplesToAverage = (systemStatus.historyCount < 10) ? systemStatus.historyCount : 10;
+
+                    for (int i = 0; i < samplesToAverage; i++) {
+                        int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+                        endWeight += systemStatus.weightHistory[idx];
+                    }
+                    endWeight /= samplesToAverage;
+
+                    _weightDispensed = _startWeight - endWeight;
+                    _stage = FeedingStage::COMPLETED;
+                    Serial.printf("Post-averaging complete (averaged %d samples). Final dispensed: %.2f lbs\n",
+                                 samplesToAverage, _weightDispensed);
+                    return _stage;
+                }
+            }
+            break;
+
         default:
             break;
     }
@@ -429,6 +463,32 @@ void AugerControl::terminate() {
     _lastWeightCheck = millis();
     _stage = FeedingStage::TERMINATED;
     Serial.println("Feeding terminated by user");
+}
+
+/**
+ * DETECT BIN FILL
+ *
+ * Checks if the last 5 weight readings show a progressive increase,
+ * indicating bins are being filled (manually or via truck).
+ *
+ * Returns: true if bin fill detected, false otherwise
+ */
+bool AugerControl::detectBinFill() {
+    if (systemStatus.historyCount < 5) {
+        return false;  // Need at least 5 samples
+    }
+
+    // Check if last 5 readings are progressively heavier
+    for (int i = 0; i < 4; i++) {
+        int newerIdx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+        int olderIdx = (systemStatus.historyIndex - 2 - i + 10) % 10;
+
+        if (systemStatus.weightHistory[newerIdx] <= systemStatus.weightHistory[olderIdx]) {
+            return false;  // Not progressively increasing
+        }
+    }
+
+    return true;  // All 5 readings show progressive increase
 }
 
 /**

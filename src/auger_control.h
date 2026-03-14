@@ -51,7 +51,8 @@ public:
     // Check if feeding is active (including paused states, not terminal states)
     bool isFeeding() const {
         return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING
-            || _stage == FeedingStage::PAUSED_FOR_FILL || _stage == FeedingStage::PAUSED_MANUAL;
+            || _stage == FeedingStage::PAUSED_FOR_FILL || _stage == FeedingStage::PAUSED_MANUAL
+            || _stage == FeedingStage::POST_AVERAGING;
     }
 
 private:
@@ -74,6 +75,7 @@ private:
     unsigned long _chainStartTime;
     unsigned long _bothRunningStartTime;
     unsigned long _lastWeightCheck;
+    unsigned long _postAveragingStartTime;
 
     bool _alarmTriggered;
     char _alarmReason[64];
@@ -106,6 +108,9 @@ private:
     void checkSafety(float currentWeight);
     void triggerAlarm(const char* reason);
     void sendWarning(const char* warning);
+
+    // Bin fill detection
+    bool detectBinFill();
 
     // Low-level relay control
     void controlAuger(bool state);
