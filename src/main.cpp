@@ -42,7 +42,7 @@ volatile bool historyChanged = false;// Flag set when history is restored/cleare
 // We use Exponential Moving Average (EMA) to smooth noisy bin weight readings
 bool emaInitialized = false;         // True after first weight reading
 WeightLog weightLog;                 // Ring buffer of recent weight readings for web UI
-const float EMA_ALPHA = 0.2;         // EMA smoothing factor (0.3 = 30% new, 70% old)
+const float EMA_ALPHA = 0.1;         // EMA smoothing factor (0.3 = 30% new, 70% old)
 
 // Function declarations
 void setupNetwork();
