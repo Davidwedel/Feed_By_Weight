@@ -25,13 +25,10 @@ AugerControl::AugerControl() {
     _fluctuationThreshold = 2.0;
     _fillRateWeight = 0;
     _fillRateStartTime = 0;
-    _weightAtMinuteStart = 0;
-    _minuteStartTime = 0;
     _lastValidWeight = 0;
     _weightReadingFailed = false;
     _warningPending = false;
     _warnedWeightFail = false;
-    _warnedNoChange = false;
     _warnedIncrease = false;
     _warnedLowRate = false;
     _stageBeforePause = FeedingStage::STOPPED;
@@ -89,7 +86,6 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _feedStartTime = millis();
     _chainStartTime = millis();
     _lastWeightCheck = millis();
-    _minuteStartTime = millis();
 
     // Calculate start weight as average of last N readings from history
     _startWeight = 0;
@@ -109,13 +105,11 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
 
     _weightDispensed = 0;
     _lastWeight = _startWeight;
-    _weightAtMinuteStart = _startWeight;
 
     // Reset all warning/alarm flags for new feeding cycle
     _alarmTriggered = false;
     _warningPending = false;
     _warnedWeightFail = false;
-    _warnedNoChange = false;
     _warnedIncrease = false;
     _warnedLowRate = false;
     strcpy(_alarmReason, "");
@@ -229,8 +223,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
                 // Reset timing for safety monitoring (start fresh from when both running)
                 _bothRunningStartTime = millis();
-                _minuteStartTime = millis();
-                _weightAtMinuteStart = currentTotalWeight;
 
                 Serial.println("Stage: BOTH_RUNNING");
             }
@@ -241,9 +233,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Stage 2: Both auger + chain running
             // ========================================
             // Main feeding stage. Monitor weight dispensed and check for completion.
-
-            // Check non-critical safety warnings (won't stop feeding, just warns)
-            checkSafety(currentTotalWeight);
 
             // Check if target weight reached (SUCCESS CONDITION)
             if (_weightDispensed >= _targetWeight) {
@@ -256,14 +245,13 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             }
 
             // ========================================
-            // Low Feed Rate Warning (every minute)
+            // Low Feed Rate Warning
             // ========================================
+            // Uses flow rate calculated from weight history (oldest to newest).
             // If dispensing less than threshold lb/min, warn but don't stop.
             // Could indicate bin getting empty or mechanical jam.
-            if (millis() - _minuteStartTime >= 60000) {
-                float weightPerMinute = _weightAtMinuteStart - currentTotalWeight;
-
-                if (weightPerMinute < _alarmThreshold) {
+            if (systemStatus.historyCount >= 10) {  // Need sufficient history for accurate rate
+                if (systemStatus.flowRate < _alarmThreshold) {
                     if (!_warnedLowRate) {
                         sendWarning("Low feed rate - bin may be empty or jammed");
                         _warnedLowRate = true;
@@ -273,10 +261,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     sendWarning("Feed rate normal");
                     _warnedLowRate = false;
                 }
-
-                // Reset 1-minute tracking window
-                _weightAtMinuteStart = currentTotalWeight;
-                _minuteStartTime = millis();
             }
 
             // ========================================
@@ -340,8 +324,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                         controlAuger(true);
                         // Reset monitoring timers for resumed feeding
                         _bothRunningStartTime = millis();
-                        _minuteStartTime = millis();
-                        _weightAtMinuteStart = currentTotalWeight;
                     }
 
                     // Return immediately to prevent re-executing resume logic
@@ -445,8 +427,6 @@ void AugerControl::resumeFeeding() {
         controlAuger(true);
         // Reset monitoring timers
         _bothRunningStartTime = millis();
-        _minuteStartTime = millis();
-        _weightAtMinuteStart = _lastValidWeight;
     }
 
     // Reset fill rate tracking to prevent immediate false fill detection
@@ -493,36 +473,6 @@ bool AugerControl::detectBinFill() {
     }
 
     return true; 
-}
-
-/**
- * CHECK SAFETY CONDITIONS
- *
- * Called every update() during BOTH_RUNNING stage. Monitors for warning
- * conditions that don't warrant stopping (just alerting user):
- *
- * - No weight change after 30 seconds (bin empty? scale broken? jam?)
- *
- * These are warnings only - feeding continues. Only max runtime triggers actual FAILED stage.
- */
-void AugerControl::checkSafety(float currentWeight) {
-    // Calculate elapsed time from when BOTH_RUNNING started (not from chain pre-run)
-    unsigned long elapsed = (millis() - _bothRunningStartTime) / 1000;
-
-    // ========================================
-    // No Weight Change Warning
-    // ========================================
-    // If auger+chain running for 30+ seconds but weight hasn't changed, something's wrong
-    if (elapsed > 30 && _weightDispensed < _fluctuationThreshold) {
-        if (!_warnedNoChange) {
-            sendWarning("No weight change detected - bin may be empty or jammed");
-            _warnedNoChange = true;
-        }
-    } else if (_warnedNoChange && _weightDispensed >= _fluctuationThreshold) {
-        // Weight started changing - clear warning
-        sendWarning("Weight dispensing resumed");
-        _warnedNoChange = false;
-    }
 }
 
 void AugerControl::triggerAlarm(const char* reason) {

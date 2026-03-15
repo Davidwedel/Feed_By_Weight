@@ -83,14 +83,11 @@ private:
     bool _warningPending;
 
     // Weight change tracking for warnings
-    float _weightAtMinuteStart;
-    unsigned long _minuteStartTime;
     float _lastValidWeight;
     bool _weightReadingFailed;
 
     // Track which warnings have been sent (once per cycle)
     bool _warnedWeightFail;
-    bool _warnedNoChange;
     bool _warnedIncrease;
     bool _warnedLowRate;
 
@@ -105,7 +102,6 @@ private:
     bool _fillInProgress;
 
     // Safety and warnings
-    void checkSafety(float currentWeight);
     void triggerAlarm(const char* reason);
     void sendWarning(const char* warning);
 
