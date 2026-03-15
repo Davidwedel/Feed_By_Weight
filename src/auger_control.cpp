@@ -474,12 +474,16 @@ void AugerControl::terminate() {
  * Returns: true if bin fill detected, false otherwise
  */
 bool AugerControl::detectBinFill() {
-    if (systemStatus.historyCount < 5) {
-        return false;  // Need at least 5 samples
+
+	//how many readings back to go
+	int howFarBack = 5;
+
+    if (systemStatus.historyCount < howFarBack) {
+        return false;  // check if we have enough samples
     }
 
-    // Check if last 5 readings are progressively heavier
-    for (int i = 0; i < 4; i++) {
+    // Check if last howFarBack readings are progressively heavier
+    for (int i = 0; i < howFarBack - 1; i++) {
         int newerIdx = (systemStatus.historyIndex - 1 - i + 10) % 10;
         int olderIdx = (systemStatus.historyIndex - 2 - i + 10) % 10;
 
@@ -488,7 +492,7 @@ bool AugerControl::detectBinFill() {
         }
     }
 
-    return true;  // All 5 readings show progressive increase
+    return true; 
 }
 
 /**
