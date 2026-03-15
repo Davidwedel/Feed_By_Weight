@@ -465,11 +465,12 @@ void updateBinWeights() {
         // Debug: print weights every read
         static int readCount = 0;
         if (++readCount % 1 == 0) {
-            Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f\n",
+            Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f Total=%.0f\n",
                 systemStatus.currentWeight[0],
                 systemStatus.currentWeight[1],
                 systemStatus.currentWeight[2],
-                systemStatus.currentWeight[3]);
+                systemStatus.currentWeight[3],
+				systemStatus.totalCurrentWeight);
         }
     } else {
         // Read failed - log error and attempt reconnection if down for 30+ seconds
