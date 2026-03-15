@@ -443,14 +443,14 @@ void updateBinWeights() {
 		systemStatus.weightHistory[systemStatus.historyIndex] = systemStatus.totalCurrentWeight;
 
 		// Advance circular buffer index
-		systemStatus.historyIndex = (systemStatus.historyIndex + 1) % 10;
-		if (systemStatus.historyCount < 10) systemStatus.historyCount++;
+		systemStatus.historyIndex = (systemStatus.historyIndex + 1) % SystemStatus::WEIGHT_HISTORY_SIZE;
+		if (systemStatus.historyCount < SystemStatus::WEIGHT_HISTORY_SIZE) systemStatus.historyCount++;
 
         // Calculate rate of change (lbs/min) using oldest vs newest in history
-        // This gives smoother readings over a longer window (up to 27 seconds)
+        // This gives smoother readings over a longer window (up to 60 seconds)
         if (systemStatus.historyCount >= 2) {
-            int newestIdx = (systemStatus.historyIndex - 1 + 10) % 10;
-            int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + 10) % 10;
+            int newestIdx = (systemStatus.historyIndex - 1 + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+            int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
 
             float newestWeight = systemStatus.weightHistory[newestIdx];
             float oldestWeight = systemStatus.weightHistory[oldestIdx];

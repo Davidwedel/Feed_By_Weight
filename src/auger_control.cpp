@@ -96,7 +96,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
 
     if (systemStatus.historyCount > 0) {
         for (int i = 0; i < systemStatus.historyCount; i++) {
-            int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+            int idx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
             _startWeight += systemStatus.weightHistory[idx];
         }
         _startWeight /= systemStatus.historyCount;
@@ -364,7 +364,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 // Check if bin fill started during settling period
                 if (detectBinFill()) {
                     // Bin fill detected during settling - use oldest available reading
-                    int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + 10) % 10;
+                    int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
                     float endWeight = systemStatus.weightHistory[oldestIdx];
                     _weightDispensed = _startWeight - endWeight;
                     _stage = FeedingStage::COMPLETED;
@@ -377,10 +377,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 if (postElapsed >= 60) {
                     // Average last N readings for final weight
                     float endWeight = 0;
-                    int samplesToAverage = (systemStatus.historyCount < 10) ? systemStatus.historyCount : 10;
+                    int samplesToAverage = (systemStatus.historyCount < SystemStatus::WEIGHT_HISTORY_SIZE) ? systemStatus.historyCount : SystemStatus::WEIGHT_HISTORY_SIZE;
 
                     for (int i = 0; i < samplesToAverage; i++) {
-                        int idx = (systemStatus.historyIndex - 1 - i + 10) % 10;
+                        int idx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
                         endWeight += systemStatus.weightHistory[idx];
                     }
                     endWeight /= samplesToAverage;
@@ -484,8 +484,8 @@ bool AugerControl::detectBinFill() {
 
     // Check if last howFarBack readings are progressively heavier
     for (int i = 0; i < howFarBack - 1; i++) {
-        int newerIdx = (systemStatus.historyIndex - 1 - i + 10) % 10;
-        int olderIdx = (systemStatus.historyIndex - 2 - i + 10) % 10;
+        int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+        int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
 
         if (systemStatus.weightHistory[newerIdx] <= systemStatus.weightHistory[olderIdx]) {
             return false;  // Not progressively increasing

@@ -117,9 +117,11 @@ struct SystemStatus {
 	float totalCurrentWeight;
     float weightAtStart;
     float weightDispensed;
-	float weightHistory[10];
-	int historyIndex = 0;        // Circular buffer index (0-9)
-	int historyCount = 0;        // Number of samples in history (0-10)
+	//weight history array stuff
+	static constexpr int WEIGHT_HISTORY_SIZE = 20;
+	float weightHistory[WEIGHT_HISTORY_SIZE];
+	int historyIndex = 0;        // Circular buffer index 
+	int historyCount = 0;        // Number of samples in history 
 
 	//lbs/min. - means that this weight is going up (bin getting filled)
     float flowRate = 0.0;           // rate of change
