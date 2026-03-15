@@ -423,10 +423,6 @@ void updateBinWeights() {
     if (bintrac.readAllBins(systemStatus.currentWeight)) {
         systemStatus.bintracConnected = true;
 
-		//save for lbs/min calcs
-		unsigned long oldBintracUpdate = systemStatus.lastBintracUpdate;
-		float oldTotalWeight = systemStatus.totalCurrentWeight;
-
 		//reset lastBintracUpdate
         systemStatus.lastBintracUpdate = millis();
 
@@ -450,12 +446,18 @@ void updateBinWeights() {
 		systemStatus.historyIndex = (systemStatus.historyIndex + 1) % 10;
 		if (systemStatus.historyCount < 10) systemStatus.historyCount++;
 
-        // Calculate rate of change (lbs/min)
-        if (oldBintracUpdate > 0) {  // Skip first reading
-            float timeDeltaMinutes = (systemStatus.lastBintracUpdate -
-  oldBintracUpdate) / 60000.0;
-            float weightChange = oldTotalWeight -
-  systemStatus.totalCurrentWeight;
+        // Calculate rate of change (lbs/min) using oldest vs newest in history
+        // This gives smoother readings over a longer window (up to 27 seconds)
+        if (systemStatus.historyCount >= 2) {
+            int newestIdx = (systemStatus.historyIndex - 1 + 10) % 10;
+            int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + 10) % 10;
+
+            float newestWeight = systemStatus.weightHistory[newestIdx];
+            float oldestWeight = systemStatus.weightHistory[oldestIdx];
+
+            // Time span = (number of samples - 1) * 3 seconds per sample
+            float timeDeltaMinutes = (systemStatus.historyCount - 1) * 3.0 / 60.0;
+            float weightChange = oldestWeight - newestWeight;
             systemStatus.flowRate = weightChange / timeDeltaMinutes;
         }
 
