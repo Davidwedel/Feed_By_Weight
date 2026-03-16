@@ -229,6 +229,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             break;
 
         case FeedingStage::BOTH_RUNNING:
+            {
             // ========================================
             // Stage 2: Both auger + chain running
             // ========================================
@@ -273,6 +274,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // goes wrong (broken scale, jammed auger, etc.)
             if (elapsed >= _maxRuntime) {
                 triggerAlarm("Maximum runtime exceeded");
+            }
             }
             break;
 
