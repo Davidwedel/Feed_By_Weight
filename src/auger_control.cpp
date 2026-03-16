@@ -237,6 +237,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Check if target weight reached (SUCCESS CONDITION)
             if (_weightDispensed >= _targetWeight) {
                 stopAll();
+                _lastWeightCheck = millis();  // Record when motors stopped
                 _postAveragingStartTime = millis();
                 _stage = FeedingStage::POST_AVERAGING;
                 Serial.printf("Target reached: Dispensed=%.2f in %lus. Starting post-averaging (60s)...\n",
@@ -502,7 +503,8 @@ unsigned long AugerControl::getDuration() const {
     if (_feedStartTime == 0) return 0;
 
     if (_stage == FeedingStage::STOPPED || _stage == FeedingStage::COMPLETED
-        || _stage == FeedingStage::FAILED || _stage == FeedingStage::TERMINATED) {
+        || _stage == FeedingStage::FAILED || _stage == FeedingStage::TERMINATED
+        || _stage == FeedingStage::POST_AVERAGING) {
         return (_lastWeightCheck - _feedStartTime) / 1000;
     }
 
