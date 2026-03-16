@@ -51,11 +51,7 @@ bool Storage::loadConfig(Config& config) {
     config.maxRuntime = prefs.getUShort("maxRuntime", 600);
 
     // Bin filling detection
-    config.fillDetectionRate = prefs.getFloat("fillRate", 20.0);
     config.fillSettlingTime = prefs.getUShort("fillSettle", 1);
-
-    // Weight fluctuation threshold
-    config.weightFluctuationThreshold = prefs.getFloat("wFlucThresh", 2.0);
 
     // Telegram
     strlcpy(config.telegramToken, prefs.getString("tgToken", "").c_str(), sizeof(config.telegramToken));
@@ -105,11 +101,7 @@ bool Storage::saveConfig(const Config& config) {
     prefs.putUShort("maxRuntime", config.maxRuntime);
 
     // Bin filling detection
-    prefs.putFloat("fillRate", config.fillDetectionRate);
     prefs.putUShort("fillSettle", config.fillSettlingTime);
-
-    // Weight fluctuation threshold
-    prefs.putFloat("wFlucThresh", config.weightFluctuationThreshold);
 
     // Telegram
     prefs.putString("tgToken", config.telegramToken);

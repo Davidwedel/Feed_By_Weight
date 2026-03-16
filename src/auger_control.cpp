@@ -21,8 +21,6 @@ AugerControl::AugerControl() {
     _maxRuntime = 600;
     _fillSettlingTime = 60;
     _alarmThreshold = 10.0;
-    _fillDetectionRate = 20.0;
-    _fluctuationThreshold = 2.0;
     _fillRateWeight = 0;
     _fillRateStartTime = 0;
     _lastValidWeight = 0;
@@ -68,7 +66,7 @@ void AugerControl::begin() {
  * - Safety monitoring (low flow rate warnings, max runtime alarm)
  * - Warning flags (reset for new feeding cycle)
  */
-void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, float fillDetectionRate, uint16_t fillSettlingMinutes, float fluctuationThreshold) {
+void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, uint16_t maxRuntime, uint16_t fillSettlingMinutes) {
     if (_stage != FeedingStage::STOPPED) {
         Serial.println("Cannot start feeding - already in progress");
         return;
@@ -78,8 +76,6 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _targetWeight = targetWeight;
     _chainPreRunTime = chainPreRunTime;
     _maxRuntime = maxRuntime;
-    _fillDetectionRate = fillDetectionRate;            // lb/min increase = bin fill
-    _fluctuationThreshold = fluctuationThreshold;      // lb, for detecting weight stabilization
     _fillSettlingTime = fillSettlingMinutes * 60;      // convert minutes to seconds internally
 
     // Initialize timing
@@ -285,12 +281,11 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Motors are stopped. Monitor weight to detect when filling finishes,
             // then wait for settling time before resuming.
 
-            if (currentTotalWeight > _lastWeightDuringPause + _fluctuationThreshold) {
-                // Weight still increasing - bin fill still happening
-                _lastWeightDuringPause = currentTotalWeight;  // Update tracking weight
+            if (detectBinFill()) {
+                // Bin fill still in progress (5 consecutive weight increases detected)
                 _fillStabilizedTime = 0;  // Reset settling timer
             } else {
-                // Weight stable (not increasing more than fluctuation threshold)
+                // Bin fill stopped (no longer seeing progressive increases)
                 if (_fillStabilizedTime == 0) {
                     // Start settling countdown (wait for weight to fully settle)
                     _fillStabilizedTime = millis();

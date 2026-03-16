@@ -277,8 +277,7 @@ void loop() {
                 currentFeedCycle = 0;
 
                 augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime,
-                    config.maxRuntime, config.fillDetectionRate,
-                    config.fillSettlingTime, config.weightFluctuationThreshold);
+                    config.maxRuntime, config.fillSettlingTime);
 
                 systemStatus.state = SystemState::FEEDING;
                 systemStatus.feedStartTime = millis();
@@ -577,7 +576,7 @@ void runStateMachine() {
                     currentFeedTarget = calculateFeedTarget(currentFeedCycle);
 
                     // Start feeding sequence (chain pre-run, then both auger+chain)
-                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillDetectionRate, config.fillSettlingTime, config.weightFluctuationThreshold);
+                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillSettlingTime);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 
