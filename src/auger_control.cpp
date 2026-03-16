@@ -251,7 +251,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Uses flow rate calculated from weight history (oldest to newest).
             // If dispensing less than threshold lb/min, warn but don't stop.
             // Could indicate bin getting empty or mechanical jam.
-            if (systemStatus.historyCount >= SystemStatus::WEIGHT_HISTORY_SIZE) {  // Need sufficient history for accurate rate
+            // Wait at least 60 seconds after auger starts before checking.
+            unsigned long augerElapsed = (millis() - _bothRunningStartTime) / 1000;
+            if (augerElapsed >= 60 && systemStatus.historyCount >= SystemStatus::WEIGHT_HISTORY_SIZE) {
                 if (systemStatus.flowRate < _alarmThreshold) {
                     if (!_warnedLowRate) {
                         sendWarning("Low feed rate - bin may be empty or jammed");
