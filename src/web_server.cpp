@@ -288,9 +288,6 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
     if (doc["telegramToken"].is<const char*>()) {
         strlcpy(_config.telegramToken, doc["telegramToken"], sizeof(_config.telegramToken));
     }
-    if (doc["telegramChatID"].is<const char*>()) {
-        strlcpy(_config.telegramChatID, doc["telegramChatID"], sizeof(_config.telegramChatID));
-    }
     if (doc["telegramAllowedUsers"].is<const char*>()) {
         strlcpy(_config.telegramAllowedUsers, doc["telegramAllowedUsers"], sizeof(_config.telegramAllowedUsers));
     }
@@ -480,7 +477,6 @@ String FeedWebServer::configToJson() {
     doc["maxRuntime"] = _config.maxRuntime;
     doc["fillSettlingTime"] = _config.fillSettlingTime;
     doc["telegramToken"] = _config.telegramToken;
-    doc["telegramChatID"] = _config.telegramChatID;
     doc["telegramAllowedUsers"] = _config.telegramAllowedUsers;
     doc["telegramEnabled"] = _config.telegramEnabled;
     doc["wifiSSID"] = _config.wifiSSID;

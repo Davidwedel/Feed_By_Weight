@@ -15,6 +15,7 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _startFeedWeight = 0;
     memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
     _statusRequestChatId = "";
+    _lastAuthorizedChatId = "";
 }
 
 bool TelegramBot::begin() {
@@ -30,7 +31,7 @@ bool TelegramBot::begin() {
 
     _initialized = true;
     Serial.println("Telegram bot initialized (WiFiClientSecure)");
-    sendMessage("Weight Feeder System Online");
+    Serial.println("Send a message to the bot to register your chat for notifications");
 
     return true;
 }
@@ -161,15 +162,14 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
 
 bool TelegramBot::isEnabled() {
     return _config.telegramEnabled &&
-           strlen(_config.telegramToken) > 0 &&
-           strlen(_config.telegramChatID) > 0;
+           strlen(_config.telegramToken) > 0;
 }
 
 void TelegramBot::sendMessage(const String& text) {
-    if (!_bot || !isEnabled() || strlen(_config.telegramChatID) == 0) return;
+    if (!_bot || !isEnabled() || _lastAuthorizedChatId.length() == 0) return;
 
-    _bot->sendMessage(_config.telegramChatID, text, "");
-    Serial.printf("Telegram sent: %s\n", text.c_str());
+    _bot->sendMessage(_lastAuthorizedChatId, text, "");
+    Serial.printf("Telegram sent to %s: %s\n", _lastAuthorizedChatId.c_str(), text.c_str());
 }
 
 bool TelegramBot::isUserAuthorized(const String& chat_id) {
@@ -218,6 +218,9 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             _bot->sendMessage(chat_id, "Unauthorized. Contact system administrator.", "");
             continue;
         }
+
+        // Store this chat_id as the last authorized one (for sending notifications)
+        _lastAuthorizedChatId = chat_id;
 
         if (text == "/start") {
             _bot->sendMessage(chat_id,

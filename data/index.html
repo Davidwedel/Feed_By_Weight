@@ -362,7 +362,7 @@
                 </div>
 
                 <h3 style="margin-top: 30px; margin-bottom: 15px;">Telegram Bot</h3>
-                <small style="color: #666; font-size: 0.9em;">Telegram uses WiFi for SSL. Configure WiFi credentials below.</small>
+                <small style="color: #666; font-size: 0.9em;">Telegram uses WiFi for SSL. Configure WiFi credentials below. Bot will reply in the same chat where commands are sent.</small>
 
                 <div class="form-group">
                     <label style="display: flex; align-items: center; cursor: pointer;">
@@ -393,20 +393,12 @@
                 </div>
 
                 <div class="form-group">
-                    <label>Telegram Chat ID</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="telegramChatID" placeholder="123456789">
-                        <button type="button" class="password-toggle" onclick="togglePassword('telegramChatID')">Show</button>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Allowed Chat IDs (comma-separated)</label>
+                    <label>Allowed Chat IDs (comma-separated, optional)</label>
                     <div class="password-wrapper">
                         <input type="password" id="telegramAllowedUsers" placeholder="123456789,987654321">
                         <button type="button" class="password-toggle" onclick="togglePassword('telegramAllowedUsers')">Show</button>
                     </div>
-                    <small style="color: #666; font-size: 0.9em;">Send /start to the bot to see your chat ID in serial output</small>
+                    <small style="color: #666; font-size: 0.9em;">Leave empty to allow all users. Send /start to the bot to see your chat ID in serial output.</small>
                 </div>
 
                 <button type="submit">Save Configuration</button>
@@ -606,7 +598,6 @@
                     document.getElementById('wifiSSID').value = data.wifiSSID;
                     document.getElementById('wifiPassword').value = data.wifiPassword;
                     document.getElementById('telegramToken').value = data.telegramToken;
-                    document.getElementById('telegramChatID').value = data.telegramChatID;
                     document.getElementById('telegramAllowedUsers').value = data.telegramAllowedUsers;
                     updateScheduleLabel(data.autoFeedEnabled);
                     document.getElementById('autoFeedEnabled').checked = data.autoFeedEnabled;
@@ -654,7 +645,6 @@
                 wifiSSID: document.getElementById('wifiSSID').value,
                 wifiPassword: document.getElementById('wifiPassword').value,
                 telegramToken: document.getElementById('telegramToken').value,
-                telegramChatID: document.getElementById('telegramChatID').value,
                 telegramAllowedUsers: document.getElementById('telegramAllowedUsers').value
             };
 

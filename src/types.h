@@ -57,8 +57,7 @@ struct Config {
 
     // Telegram settings
     char telegramToken[50] = "";
-    char telegramChatID[20] = "";
-    char telegramAllowedUsers[200] = "";  // Comma-separated usernames
+    char telegramAllowedUsers[200] = "";  // Comma-separated chat IDs
     bool telegramEnabled = false;
 
     // WiFi settings (used for Telegram SSL only)
