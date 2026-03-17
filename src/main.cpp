@@ -265,6 +265,10 @@ void loop() {
                 augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime,
                     config.maxRuntime);
 
+                if (config.telegramEnabled && telegramBot) {
+                    telegramBot->sendFeedingStarted(currentFeedCycle, currentFeedTarget);
+                }
+
                 systemStatus.state = SystemState::FEEDING;
                 systemStatus.feedStartTime = millis();
 
@@ -651,6 +655,11 @@ void runStateMachine() {
 
                     // Start feeding sequence (chain pre-run, then both auger+chain)
                     augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime);
+
+                    if (config.telegramEnabled && telegramBot) {
+                        telegramBot->sendFeedingStarted(currentFeedCycle, currentFeedTarget);
+                    }
+
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 

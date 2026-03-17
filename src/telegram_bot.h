@@ -20,6 +20,9 @@ public:
     // Send alarm message
     void sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, const char* reason);
 
+    // Send feeding started message
+    void sendFeedingStarted(uint8_t feedCycle, float targetWeight);
+
     // Send feeding complete message
     void sendFeedingComplete(uint8_t feedCycle, float targetWeight, float weight, uint16_t duration, float totalDispensedToday);
 
