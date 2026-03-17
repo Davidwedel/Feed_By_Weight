@@ -25,7 +25,6 @@ TelegramBot* telegramBot;    // Optional Telegram notifications and commands
 uint8_t currentFeedCycle = 0;        // Which feeding cycle (0-3) is currently active
 float currentFeedTarget = 0;         // Target weight for current feeding (captured at start)
 unsigned long lastBintracRead = 0;   // Timestamp of last bin weight read (for 3-second interval)
-unsigned long lastStatusUpdate = 0;  // Timestamp of last status update
 unsigned long lastProgressSave = 0;  // Timestamp of last feed progress save to NVS
 bool networkConnected = false;       // True if Ethernet has valid IP address
 float totalDispensedToday = 0;       // Running total of feed dispensed today (lbs)
@@ -212,7 +211,6 @@ void loop() {
         lastBintracRead = millis();
 
         updateSystemStatus();      // Update systemStatus structure for web UI
-        lastStatusUpdate = millis();
 
         // Blink status LED to show system is alive
         digitalWrite(STATUS_LED_PIN, !digitalRead(STATUS_LED_PIN));
