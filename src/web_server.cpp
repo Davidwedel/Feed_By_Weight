@@ -427,7 +427,7 @@ void FeedWebServer::handlePauseFeed(EthernetClient& client) {
         sendResponse(client, 400, "application/json", "{\"error\":\"Not currently feeding\"}");
         return;
     }
-    _augerControl.pauseFeeding();
+    _augerControl.pauseFeeding(true); // byUser
     sendJsonResponse(client, "{\"success\":true}");
 }
 
@@ -436,7 +436,7 @@ void FeedWebServer::handleResumeFeed(EthernetClient& client) {
         sendResponse(client, 400, "application/json", "{\"error\":\"Not currently feeding\"}");
         return;
     }
-    _augerControl.resumeFeeding();
+    _augerControl.resumeFeeding(true); // byUser
     sendJsonResponse(client, "{\"success\":true}");
 }
 

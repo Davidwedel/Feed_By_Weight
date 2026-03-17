@@ -529,6 +529,28 @@ void updateBinWeights() {
 
 		prevBinFillDetected = systemStatus.binFillDetected;
 
+		// Track feeding pause state for notifications
+		static bool wasPaused = false;
+		bool isPaused = (systemStatus.feedingStage == FeedingStage::PAUSED);
+
+		// Notify on pause (only if not paused by user)
+		if (isPaused && !wasPaused && !augerControl.isPausedByUser()) {
+			if (config.telegramEnabled && telegramBot) {
+				telegramBot->sendMessage("Feeding paused - bin fill detected");
+			}
+			Serial.println("Feeding paused - notification sent");
+		}
+
+		// Notify on resume
+		if (!isPaused && wasPaused && !augerControl.isPausedByUser()) {
+			if (config.telegramEnabled && telegramBot) {
+				telegramBot->sendMessage("Feeding resumed");
+			}
+			Serial.println("Feeding resumed - notification sent");
+		}
+
+		wasPaused = isPaused;
+
     } else {
         // Read failed - log error and attempt reconnection if down for 30+ seconds
         systemStatus.bintracConnected = false;

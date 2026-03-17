@@ -17,9 +17,10 @@ public:
     // Stop all immediately
     void stopAll();
 
-    // Pause/resume manual control during feeding
-    void pauseFeeding();
-    void resumeFeeding();
+    // Pause/resume during feeding
+    void pauseFeeding(bool byUser);
+    void resumeFeeding(bool byUser);
+
     void terminate();
 
     // Update - call frequently in main loop
@@ -51,9 +52,11 @@ public:
     // Check if feeding is active (including paused states, not terminal states)
     bool isFeeding() const {
         return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING
-            || _stage == FeedingStage::PAUSED_FOR_FILL || _stage == FeedingStage::PAUSED_MANUAL
+            || _stage == FeedingStage::PAUSED
             || _stage == FeedingStage::POST_AVERAGING;
     }
+
+    bool isPausedByUser() const { return _pausedByUser; }
 
 private:
     bool _augerRunning;
@@ -88,13 +91,10 @@ private:
     bool _warnedIncrease;
     bool _warnedLowRate;
 
-    // Bin filling detection and pause state
+    // Pause state
     FeedingStage _stageBeforePause;
-    float _lastWeight;                // Previous weight reading for fill detection
-    float _fillRateWeight;            // Weight at start of rate evaluation window
-    unsigned long _fillRateStartTime; // Timestamp of rate evaluation window start
     float _weightWhenPaused;          // Weight at the moment pause triggered (never changes)
-    bool _fillInProgress;
+	bool _pausedByUser;
 
     // Safety and warnings
     void triggerAlarm(const char* reason);

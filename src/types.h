@@ -23,11 +23,10 @@ enum class FeedingStage {
     STOPPED,
     CHAIN_ONLY,
     BOTH_RUNNING,
-    PAUSED_FOR_FILL,
     POST_AVERAGING,
     COMPLETED,
     FAILED,
-    PAUSED_MANUAL,
+    PAUSED,
     TERMINATED
 };
 

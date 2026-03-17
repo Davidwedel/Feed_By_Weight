@@ -483,7 +483,7 @@
                 .then(r => r.json())
                 .then(data => {
                     const states = ['IDLE', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
-                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED', 'PAUSED_MANUAL', 'TERMINATED'];
+                    const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'COMPLETED', 'FAILED', 'PAUSED', 'TERMINATED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
                     document.getElementById('clearAlarmBtn').style.display = data.state === 3 ? 'inline-block' : 'none';
