@@ -11,9 +11,7 @@
 #include "web_server.h"
 #include "telegram_bot.h"
 
-// ========================================
 // Global Objects - Core System Components
-// ========================================
 Storage storage;              // LittleFS file storage for config and feed history
 BinTrac bintrac;             // Modbus TCP client for bin weight monitoring
 AugerControl augerControl;   // Controls feeding motors (augers and chains)
@@ -23,9 +21,7 @@ SystemStatus systemStatus;   // Current system state shared with web interface
 FeedWebServer* webServer;    // Async HTTP server for web UI and API
 TelegramBot* telegramBot;    // Optional Telegram notifications and commands
 
-// ========================================
 // State Tracking Variables
-// ========================================
 uint8_t currentFeedCycle = 0;        // Which feeding cycle (0-3) is currently active
 float currentFeedTarget = 0;         // Target weight for current feeding (captured at start)
 unsigned long lastBintracRead = 0;   // Timestamp of last bin weight read (for 3-second interval)
@@ -36,9 +32,7 @@ float totalDispensedToday = 0;       // Running total of feed dispensed today (l
 uint8_t lastDayForTotal = 0;         // Day-of-month for detecting midnight rollover
 volatile bool historyChanged = false;// Flag set when history is restored/cleared
 
-// ========================================
 // Weight Smoothing Configuration
-// ========================================
 // We use Exponential Moving Average (EMA) to smooth noisy bin weight readings
 bool emaInitialized = false;         // True after first weight reading
 WeightLog weightLog;                 // Ring buffer of recent weight readings for web UI
@@ -70,11 +64,6 @@ void setup() {
     Serial.begin(115200);
     delay(1000);
 
-    Serial.println("\n\n=================================");
-    Serial.println("Weight Feeder Control System");
-    Serial.printf("Version: %s\n", FIRMWARE_VERSION);
-    Serial.println("=================================\n");
-
     // Initialize status LED (blinks every 3 seconds during normal operation)
     pinMode(STATUS_LED_PIN, OUTPUT);
     digitalWrite(STATUS_LED_PIN, LOW);
@@ -95,9 +84,7 @@ void setup() {
         Serial.println("Using default configuration");
     }
 
-    // ========================================
     // Power Loss Recovery
-    // ========================================
     // During feeding, we save progress to NVS every 60 seconds. If the ESP rebooted
     // unexpectedly (power loss, crash), we recover that partial feed and log it to history.
     {
@@ -150,9 +137,7 @@ void setup() {
     webServer = new FeedWebServer(storage, augerControl, bintrac, config, systemStatus, weightLog);
     webServer->begin();
 
-    // ========================================
     // WiFi for Telegram (runs alongside Ethernet)
-    // ========================================
     // Telegram bot requires SSL/TLS which works better over WiFi than Ethernet.
     // We connect WiFi in addition to Ethernet if Telegram is enabled.
     if (config.telegramEnabled && strlen(config.wifiSSID) > 0) {
