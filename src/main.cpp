@@ -253,8 +253,10 @@ void loop() {
         if (telegramBot->isStartFeedRequested()) {
             if (augerControl.isFeeding() || systemStatus.state == SystemState::FEEDING) {
                 Serial.println("Telegram /startfeed ignored - already feeding");
+				telegramBot->sendMessage("Telegram /startfeed ignored - already feeding");
             } else if (systemStatus.state == SystemState::ALARM) {
                 Serial.println("Telegram /startfeed ignored - in alarm state");
+				telegramBot->sendMessage("Telegram /startfeed ignored - in alarm state");
             } else {
                 systemStatus.weightAtStart = systemStatus.totalCurrentWeight;
                 currentFeedTarget = telegramBot->getStartFeedWeight();
