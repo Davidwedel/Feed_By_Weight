@@ -393,7 +393,7 @@ void FeedWebServer::handleStartFeed(EthernetClient& client) {
 
     _status.weightAtStart = _status.totalCurrentWeight;
 
-    _augerControl.startFeeding(_config.feedAmounts[0], _config.chainPreRunTime, _config.maxRuntime, _config.fillSettlingTime);
+    _augerControl.startFeeding(_config.feedAmounts[0], _config.chainPreRunTime, _config.maxRuntime);
     _status.state = SystemState::FEEDING;
     _status.feedStartTime = millis();
 

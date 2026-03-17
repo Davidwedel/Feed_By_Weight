@@ -263,7 +263,7 @@ void loop() {
                 currentFeedCycle = 0;
 
                 augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime,
-                    config.maxRuntime, config.fillSettlingTime);
+                    config.maxRuntime);
 
                 systemStatus.state = SystemState::FEEDING;
                 systemStatus.feedStartTime = millis();
@@ -500,20 +500,31 @@ void updateBinWeights() {
 			}
 		}
 
+		// Track fill end time for post-fill wait period
+		static unsigned long fillEndedTime = 0;
+
 		// Notify on bin fill start
 		if (systemStatus.binFillDetected && !prevBinFillDetected) {
 			if (config.telegramEnabled && telegramBot) {
 				telegramBot->sendMessage("Bin fill detected - feeding paused");
 			}
 			Serial.println("Bin fill detected - notification sent");
+			fillEndedTime = 0;  // Reset wait timer
 		}
 
-		// Notify when bin fill ends
+		// When bin fill ends, start wait timer
 		if (!systemStatus.binFillDetected && prevBinFillDetected) {
+			fillEndedTime = millis();
+			Serial.printf("Bin fill ended - starting %d minute wait\n", config.fillSettlingTime);
+		}
+
+		// Check if wait time has elapsed after fill ended
+		if (fillEndedTime > 0 && (millis() - fillEndedTime) / 1000 >= (config.fillSettlingTime * 60)) {
 			if (config.telegramEnabled && telegramBot) {
-				telegramBot->sendMessage("Bin fill complete - normal operation");
+				telegramBot->sendMessage("Bin fill wait complete - normal operation");
 			}
-			Serial.println("Bin fill ended - notification sent");
+			Serial.println("Bin fill wait complete - notification sent");
+			fillEndedTime = 0;  // Reset timer
 		}
 
 		prevBinFillDetected = systemStatus.binFillDetected;
@@ -618,7 +629,7 @@ void runStateMachine() {
                     currentFeedTarget = calculateFeedTarget(currentFeedCycle);
 
                     // Start feeding sequence (chain pre-run, then both auger+chain)
-                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime, config.fillSettlingTime);
+                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime);
                     systemStatus.state = SystemState::FEEDING;
                     systemStatus.feedStartTime = millis();
 
