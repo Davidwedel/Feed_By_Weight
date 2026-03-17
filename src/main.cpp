@@ -471,6 +471,9 @@ void updateBinWeights() {
 		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight + config.projectedWeight;
 
 		//do bin fill detection
+		// Track previous state to detect transitions
+		static bool prevBinFillDetected = false;
+
 		//how many readings back to go
 		int howFarBack = 5;
 
@@ -478,22 +481,42 @@ void updateBinWeights() {
 		systemStatus.binFillDetected = false;
 
 		// check if we have enough samples
-		if (systemStatus.historyCount < howFarBack) {
-			return; //skip detection if we don't 
-		}
+		if (systemStatus.historyCount >= howFarBack) {
+			// Check if last howFarBack readings are progressively heavier (>10 lbs per step)
+			bool allPassed = true;
+			for (int i = 0; i < howFarBack - 1; i++) {
+				int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+				int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
 
-		// Check if last howFarBack readings are progressively heavier (>10 lbs per step)
-		for (int i = 0; i < howFarBack - 1; i++) {
-			int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-			int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-
-			float delta = systemStatus.weightHistory[newerIdx] - systemStatus.weightHistory[olderIdx];
-			if (delta <= 10) {  // Not increasing by enough
-				return; //will break us out of the loop if no detection
+				float delta = systemStatus.weightHistory[newerIdx] - systemStatus.weightHistory[olderIdx];
+				if (delta <= 10) {  // Not increasing by enough
+					allPassed = false;
+					break;
+				}
+			}
+			//if all checks passed, then bin is being filled
+			if (allPassed) {
+				systemStatus.binFillDetected = true;
 			}
 		}
-		//if we got here on final loop, then bin is being filled
-		systemStatus.binFillDetected = true;
+
+		// Notify on bin fill start
+		if (systemStatus.binFillDetected && !prevBinFillDetected) {
+			if (config.telegramEnabled && telegramBot) {
+				telegramBot->sendMessage("Bin fill detected - feeding paused");
+			}
+			Serial.println("Bin fill detected - notification sent");
+		}
+
+		// Notify when bin fill ends
+		if (!systemStatus.binFillDetected && prevBinFillDetected) {
+			if (config.telegramEnabled && telegramBot) {
+				telegramBot->sendMessage("Bin fill complete - normal operation");
+			}
+			Serial.println("Bin fill ended - notification sent");
+		}
+
+		prevBinFillDetected = systemStatus.binFillDetected;
 
     } else {
         // Read failed - log error and attempt reconnection if down for 30+ seconds
