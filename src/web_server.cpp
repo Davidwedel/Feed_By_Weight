@@ -276,6 +276,9 @@ void FeedWebServer::handleSetConfig(EthernetClient& client, const String& body) 
     if (doc["chainPreRunTime"].is<int>()) {
         _config.chainPreRunTime = doc["chainPreRunTime"];
     }
+    if (doc["projectedWeight"].is<float>()) {
+        _config.projectedWeight = doc["projectedWeight"];
+    }
     if (doc["alarmThreshold"].is<float>()) {
         _config.alarmThreshold = doc["alarmThreshold"];
     }
@@ -473,6 +476,7 @@ String FeedWebServer::configToJson() {
     }
     doc["weightUnit"] = (int)_config.weightUnit;
     doc["chainPreRunTime"] = _config.chainPreRunTime;
+    doc["projectedWeight"] = _config.projectedWeight;
     doc["alarmThreshold"] = _config.alarmThreshold;
     doc["maxRuntime"] = _config.maxRuntime;
     doc["fillSettlingTime"] = _config.fillSettlingTime;
@@ -503,6 +507,7 @@ String FeedWebServer::statusToJson() {
 
     doc["weightAtStart"] = _status.weightAtStart;
     doc["weightDispensed"] = _status.weightDispensed;
+	doc["projectedWeightDispensed" = _status.projectedWeightDispensed;
     doc["flowRate"] = _status.flowRate;
     doc["totalDispensedToday"] = _status.totalDispensedToday;
     doc["augerRunning"] = _status.augerRunning;

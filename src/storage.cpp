@@ -45,6 +45,7 @@ bool Storage::loadConfig(Config& config) {
     }
     config.weightUnit = (WeightUnit)prefs.getUChar("weightUnit", 0);
     config.chainPreRunTime = prefs.getUShort("chainPreRun", 10);
+    config.projectedWeight = prefs.getFloat("projWeight", 0.0);
 
     // Alarm settings
     config.alarmThreshold = prefs.getFloat("alarmThresh", 10.0);
@@ -94,6 +95,7 @@ bool Storage::saveConfig(const Config& config) {
     }
     prefs.putUChar("weightUnit", (uint8_t)config.weightUnit);
     prefs.putUShort("chainPreRun", config.chainPreRunTime);
+    prefs.putFloat("projWeight", config.projectedWeight);
 
     // Alarm settings
     prefs.putFloat("alarmThresh", config.alarmThreshold);

@@ -247,6 +247,10 @@
                     <div class="value" id="weightDispensed">0 lbs</div>
                 </div>
                 <div class="status-item">
+                    <label>Projected Weight Dispensed</label>
+                    <div class="value" id="projectedWeightDispensed">0 lbs</div>
+                </div>
+                <div class="status-item">
                     <label>Flow Rate</label>
                     <div class="value" id="flowRate">0 lbs/min</div>
                 </div>
@@ -337,6 +341,12 @@
                 <div class="form-group">
                     <label>Chain Pre-Run Time (seconds)</label>
                     <input type="number" id="chainPreRunTime" min="0">
+                </div>
+
+                <div class="form-group">
+                    <label>Projected Weight (lbs)</label>
+                    <input type="number" id="projectedWeight" step="0.1" min="0">
+                	<small style="color: #666; font-size: 0.9em;">Due to how the bin weight is smoothed, it runs a little behind the actual weight. This value is added to the weight so it runs closer to real values.</small>
                 </div>
 
                 <div class="form-group">
@@ -590,6 +600,7 @@
                     document.getElementById('numFeedings').value = data.numFeedings;
                     document.getElementById('dailyTotal').value = data.dailyTotal;
                     document.getElementById('chainPreRunTime').value = data.chainPreRunTime;
+                    document.getElementById('projectedWeight').value = data.projectedWeight;
                     document.getElementById('alarmThreshold').value = data.alarmThreshold;
                     document.getElementById('maxRuntime').value = Math.round(data.maxRuntime / 60);
                     document.getElementById('fillSettlingTime').value = data.fillSettlingTime;
@@ -637,6 +648,7 @@
                 feedTimes: feedTimes,
                 feedAmounts: feedAmounts,
                 chainPreRunTime: parseInt(document.getElementById('chainPreRunTime').value),
+                projectedWeight: parseFloat(document.getElementById('projectedWeight').value),
                 alarmThreshold: parseFloat(document.getElementById('alarmThreshold').value),
                 maxRuntime: parseInt(document.getElementById('maxRuntime').value) * 60,
                 fillSettlingTime: parseInt(document.getElementById('fillSettlingTime').value),

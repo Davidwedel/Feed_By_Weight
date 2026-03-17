@@ -474,6 +474,10 @@ void updateBinWeights() {
 				systemStatus.totalCurrentWeight,
 				systemStatus.flowRate);
         }
+
+		// do projected Weight calcs
+		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight + config.projectedWeight;
+
     } else {
         // Read failed - log error and attempt reconnection if down for 30+ seconds
         systemStatus.bintracConnected = false;

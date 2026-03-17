@@ -47,6 +47,7 @@ struct Config {
     uint8_t numFeedings = 4;                           // number of active feedings (1-4)
     WeightUnit weightUnit = WeightUnit::POUNDS;
     uint16_t chainPreRunTime = 10;  // seconds
+    float projectedWeight = 0.0;                       // projected weight for calculations
 
     // Alarm settings
     float alarmThreshold = 10.0;  // weight per minute
@@ -112,6 +113,7 @@ struct SystemStatus {
 	float totalCurrentWeight;
     float weightAtStart;
     float weightDispensed;
+	float projectedWeightDispensed;
 	//weight history array stuff
 	static constexpr int WEIGHT_HISTORY_SIZE = 20;
 	float weightHistory[WEIGHT_HISTORY_SIZE];
