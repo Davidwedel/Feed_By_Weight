@@ -507,7 +507,7 @@ String FeedWebServer::statusToJson() {
 
     doc["weightAtStart"] = _status.weightAtStart;
     doc["weightDispensed"] = _status.weightDispensed;
-	doc["projectedWeightDispensed" = _status.projectedWeightDispensed;
+	doc["projectedWeightDispensed"] = _status.projectedWeightDispensed;
     doc["flowRate"] = _status.flowRate;
     doc["totalDispensedToday"] = _status.totalDispensedToday;
     doc["augerRunning"] = _status.augerRunning;
