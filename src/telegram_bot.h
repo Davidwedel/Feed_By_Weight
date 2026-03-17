@@ -67,7 +67,6 @@ private:
     float _startFeedWeight;
     FeedEvent _pendingFeedEvent;
     String _statusRequestChatId;
-    String _lastAuthorizedChatId;  // Store chat ID from last authorized message
 
     // Handle incoming commands
     void handleNewMessages(int numNewMessages);

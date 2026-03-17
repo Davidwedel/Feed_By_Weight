@@ -56,6 +56,7 @@ bool Storage::loadConfig(Config& config) {
 
     // Telegram
     strlcpy(config.telegramToken, prefs.getString("tgToken", "").c_str(), sizeof(config.telegramToken));
+    strlcpy(config.telegramChatID, prefs.getString("tgChatID", "").c_str(), sizeof(config.telegramChatID));
     strlcpy(config.telegramAllowedUsers, prefs.getString("tgAllowed", "").c_str(), sizeof(config.telegramAllowedUsers));
     config.telegramEnabled = prefs.getBool("tgEnabled", false);
 
@@ -106,6 +107,7 @@ bool Storage::saveConfig(const Config& config) {
 
     // Telegram
     prefs.putString("tgToken", config.telegramToken);
+    prefs.putString("tgChatID", config.telegramChatID);
     prefs.putString("tgAllowed", config.telegramAllowedUsers);
     prefs.putBool("tgEnabled", config.telegramEnabled);
 
