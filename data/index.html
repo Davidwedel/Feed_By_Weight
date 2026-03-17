@@ -161,30 +161,6 @@
         }
         .toggle-switch input:checked + .toggle-slider { background: #28a745; }
         .toggle-switch input:checked + .toggle-slider:before { transform: translateX(24px); }
-        .password-wrapper {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-        .password-wrapper input {
-            padding-right: 45px;
-        }
-        .password-toggle {
-            position: absolute;
-            right: 10px;
-            background: none;
-            border: none;
-            color: #666;
-            cursor: pointer;
-            padding: 5px;
-            margin: 0;
-            font-size: 0.85em;
-            user-select: none;
-        }
-        .password-toggle:hover {
-            color: #0066cc;
-            background: none;
-        }
     </style>
 </head>
 <body>
@@ -388,34 +364,22 @@
 
                 <div class="form-group">
                     <label>WiFi Password</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="wifiPassword" placeholder="WiFi password">
-                        <button type="button" class="password-toggle" onclick="togglePassword('wifiPassword')">Show</button>
-                    </div>
+                    <input type="password" id="wifiPassword" placeholder="WiFi password">
                 </div>
 
                 <div class="form-group">
                     <label>Telegram Bot Token</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="telegramToken" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
-                        <button type="button" class="password-toggle" onclick="togglePassword('telegramToken')">Show</button>
-                    </div>
+                    <input type="text" id="telegramToken" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
                 </div>
 
                 <div class="form-group">
                     <label>Telegram Chat ID</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="telegramChatID" placeholder="123456789">
-                        <button type="button" class="password-toggle" onclick="togglePassword('telegramChatID')">Show</button>
-                    </div>
+                    <input type="text" id="telegramChatID" placeholder="123456789">
                 </div>
 
                 <div class="form-group">
                     <label>Allowed Chat IDs (comma-separated)</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="telegramAllowedUsers" placeholder="123456789,987654321">
-                        <button type="button" class="password-toggle" onclick="togglePassword('telegramAllowedUsers')">Show</button>
-                    </div>
+                    <input type="text" id="telegramAllowedUsers" placeholder="123456789,987654321">
                     <small style="color: #666; font-size: 0.9em;">Send /start to the bot to see your chat ID in serial output</small>
                 </div>
 
@@ -466,18 +430,6 @@
             if (fetchBusy) return Promise.reject('busy');
             fetchBusy = true;
             return fetch(url, opts).finally(() => { fetchBusy = false; });
-        }
-
-        function togglePassword(inputId) {
-            const input = document.getElementById(inputId);
-            const button = event.target;
-            if (input.type === 'password') {
-                input.type = 'text';
-                button.textContent = 'Hide';
-            } else {
-                input.type = 'password';
-                button.textContent = 'Show';
-            }
         }
 
         // Auto-refresh status
