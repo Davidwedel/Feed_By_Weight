@@ -356,7 +356,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 }
 
                 // Check if 60 seconds elapsed
-                if (postElapsed >= 60) {
+                if (postElapsed >= 90) {
                     // Average last N readings for final weight
                     float endWeight = 0;
                     int samplesToAverage = (systemStatus.historyCount < SystemStatus::WEIGHT_HISTORY_SIZE) ? systemStatus.historyCount : SystemStatus::WEIGHT_HISTORY_SIZE;
