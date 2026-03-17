@@ -603,7 +603,7 @@ void updateSystemStatus() {
  *
  * Controls high-level system behavior based on current state:
  *
- * - IDLE / WAITING_FOR_SCHEDULE: Check if it's time for scheduled feeding
+ * - IDLE: Check if it's time for scheduled feeding
  * - FEEDING: Call augerControl.update() every loop, handle completion/failure
  * - MANUAL_OVERRIDE: Wait for manual control to finish
  * - ALARM: Require user intervention to clear
@@ -615,7 +615,6 @@ void updateSystemStatus() {
 void runStateMachine() {
     switch (systemStatus.state) {
         case SystemState::IDLE:
-        case SystemState::WAITING_FOR_SCHEDULE:
             if (config.autoFeedEnabled && scheduler.isTimeSynced()) {
                 // Check if current time matches any scheduled feed time (within 1-minute window)
                 if (scheduler.shouldFeed(config.feedTimes, config.numFeedings, currentFeedCycle)) {

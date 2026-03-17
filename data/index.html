@@ -482,7 +482,7 @@
             espFetch(API_BASE + '/api/status')
                 .then(r => r.json())
                 .then(data => {
-                    const states = ['IDLE', 'WAITING', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
+                    const states = ['IDLE', 'FEEDING', 'ALARM', 'MANUAL', 'ERROR'];
                     const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'PAUSED_FOR_FILL', 'COMPLETED', 'FAILED', 'PAUSED_MANUAL', 'TERMINATED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';

@@ -12,7 +12,6 @@ enum class WeightUnit {
 // System state enumeration
 enum class SystemState {
     IDLE,
-    WAITING_FOR_SCHEDULE,
     FEEDING,
     ALARM,
     MANUAL_OVERRIDE,

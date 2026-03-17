@@ -125,7 +125,7 @@ void TelegramBot::sendStatus(const SystemStatus& status, const String& chat_id) 
     if (!_bot) return;
 
     char message[512];
-    const char* stateStr[] = {"IDLE", "WAITING", "FEEDING", "ALARM", "MANUAL", "ERROR"};
+    const char* stateStr[] = {"IDLE", "FEEDING", "ALARM", "MANUAL", "ERROR"};
     const char* stageStr[] = {"STOPPED", "CHAIN_ONLY", "BOTH_RUNNING", "PAUSED_FOR_FILL", "COMPLETED", "FAILED"};
 
     snprintf(message, sizeof(message),

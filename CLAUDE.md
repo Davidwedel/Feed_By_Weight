@@ -46,7 +46,7 @@ The system supports **both** Ethernet (W5500) and WiFi. Toggle in `src/config.h`
 
 The system operates as a state machine in `runStateMachine()`:
 
-- **IDLE / WAITING_FOR_SCHEDULE**: Waiting for next scheduled feed time
+- **IDLE**: Waiting for next scheduled feed time
 - **FEEDING**: Active feeding in progress (calls AugerControl::update() every loop)
 - **MANUAL_OVERRIDE**: Manual control active via web interface
 - **ALARM**: Feeding failed, requires user intervention
