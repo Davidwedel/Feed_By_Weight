@@ -299,12 +299,14 @@ void loop() {
  */
 void setupNetwork() {
     Serial.println("Initializing W5500 Ethernet...");
+	/*
     Serial.println("Pin configuration:");
     Serial.printf("  CS:   GPIO %d\n", W5500_CS_PIN);
     Serial.printf("  MISO: GPIO %d\n", W5500_MISO_PIN);
     Serial.printf("  MOSI: GPIO %d\n", W5500_MOSI_PIN);
     Serial.printf("  SCK:  GPIO %d\n", W5500_SCK_PIN);
     Serial.printf("  RST:  GPIO %d\n", W5500_RESET_PIN);
+	*/
 
     // Hardware reset W5500 (pull reset low for 50ms, then high)
     pinMode(W5500_RESET_PIN, OUTPUT);
@@ -322,9 +324,7 @@ void setupNetwork() {
     // MAC address
     byte mac[] = W5500_MAC;
 
-    // ========================================
     // Phase 1: Try DHCP to learn network configuration
-    // ========================================
     Serial.println("Getting network info via DHCP...");
     Ethernet.begin(mac);
     delay(5000);  // Wait for DHCP negotiation to complete
@@ -358,9 +358,7 @@ void setupNetwork() {
     // Give W5500 time to stabilize after DHCP
     delay(1000);
 
-    // ========================================
     // Phase 2: Read learned network configuration
-    // ========================================
     IPAddress gateway = Ethernet.gatewayIP();
     IPAddress subnet = Ethernet.subnetMask();
     IPAddress dns = Ethernet.dnsServerIP();
@@ -375,9 +373,7 @@ void setupNetwork() {
     Serial.print("  DNS: ");
     Serial.println(dns);
 
-    // ========================================
     // Phase 3: Reconnect with static IP .205
-    // ========================================
     // Use the same subnet as DHCP gave us, but change last octet to 205
     IPAddress staticIP(dhcpIP[0], dhcpIP[1], dhcpIP[2], 205);
 
@@ -449,6 +445,7 @@ void updateBinWeights() {
         weightLog.add(millis(), systemStatus.currentWeight, systemStatus.totalCurrentWeight);
 
         // Debug: print weights every read
+		/*
         static int readCount = 0;
         if (++readCount % 1 == 0) {
             Serial.printf("Bins: A=%.0f B=%.0f C=%.0f D=%.0f Total=%.0f Rate=%.0f lb/min\n",
@@ -458,7 +455,7 @@ void updateBinWeights() {
                 systemStatus.currentWeight[3],
 				systemStatus.totalCurrentWeight,
 				systemStatus.flowRate);
-        }
+        }*/
 
 		// do projected Weight calcs
 		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight + config.projectedWeight;
@@ -500,9 +497,7 @@ void updateSystemStatus() {
         calculateTotalDispensedToday();
     }
 
-    // ========================================
     // Day Rollover Detection
-    // ========================================
     // Check if the day has changed and reset the daily total at midnight
     if (scheduler.isTimeSynced()) {
         if (lastDayForTotal == 0) {
@@ -580,9 +575,7 @@ void runStateMachine() {
             break;
 
         case SystemState::FEEDING: {
-            // ========================================
             // Active Feeding - Call augerControl.update() every loop
-            // ========================================
             // AugerControl manages the 2-stage sequence and returns its current stage.
             // We check for completion/failure/termination and handle accordingly.
 
@@ -830,9 +823,7 @@ float calculateFeedTarget(uint8_t feedCycle) {
         return config.feedAmounts[feedCycle];
     }
 
-    // ========================================
     // Last feeding of the day — auto-balance
-    // ========================================
 	
     // Calculate how much we've already dispensed today from feed events
 	// Should already be up to date but why not.
