@@ -116,9 +116,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _fillRateWeight = 0;
     _fillRateStartTime = 0;
 
-    // ========================================
     // Stage 1: Start chain only (auger stays off)
-    // ========================================
     _stage = FeedingStage::CHAIN_ONLY;
     Serial.println("About to start chain...");
     controlChain(true);
@@ -148,9 +146,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
         return _stage;
     }
 
-    // ========================================
     // Weight Reading Validation
-    // ========================================
     // BinTrac read failures show as 0 or negative. Use last valid weight to continue.
     if (currentTotalWeight <= 0) {
         if (!_warnedWeightFail) {
@@ -175,9 +171,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Calculate weight dispensed (bins get lighter as feed goes out)
     _weightDispensed = _startWeight - currentTotalWeight;
 
-    // ========================================
     // Bin Fill Detection
-    // ========================================
     // If weight is increasing rapidly (someone filling the bins manually or via truck),
     // pause feeding to avoid incorrect weight measurements.
 
@@ -201,16 +195,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
-    // ========================================
     // Feeding Stage State Machine
-    // ========================================
     switch (_stage) {
         case FeedingStage::CHAIN_ONLY:
-            // ========================================
             // Stage 1: Chain running alone (auger still off)
-            // ========================================
-            // Purpose: Move feed along the chain toward the auger inlet before
-            // starting the auger. Prevents auger from running empty.
             if ((millis() - _chainStartTime) / 1000 >= _chainPreRunTime) {
                 // Pre-run time elapsed - start auger too
                 Serial.printf("Chain pre-run complete (%ds), starting auger...\n", _chainPreRunTime);
@@ -226,9 +214,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
         case FeedingStage::BOTH_RUNNING:
             {
-            // ========================================
             // Stage 2: Both auger + chain running
-            // ========================================
             // Main feeding stage. Monitor weight dispensed and check for completion.
 
             // Check if target weight reached (SUCCESS CONDITION)
@@ -242,12 +228,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 return _stage;
             }
 
-            // ========================================
             // Low Feed Rate Warning
-            // ========================================
             // Uses flow rate calculated from weight history (oldest to newest).
             // If dispensing less than threshold lb/min, warn but don't stop.
-            // Could indicate bin getting empty or mechanical jam.
             // Wait at least 60 seconds after auger starts before checking.
             unsigned long augerElapsed = (millis() - _bothRunningStartTime) / 1000;
             if (augerElapsed >= 60 && systemStatus.historyCount >= SystemStatus::WEIGHT_HISTORY_SIZE) {
@@ -263,9 +246,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 }
             }
 
-            // ========================================
             // Maximum Runtime Check (FAILURE CONDITION)
-            // ========================================
             // Only hard failure condition. Prevents infinite feeding if something
             // goes wrong (broken scale, jammed auger, etc.)
             if (elapsed >= _maxRuntime) {
@@ -275,7 +256,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             break;
 
         case FeedingStage::PAUSED_FOR_FILL:
-            // ========================================
             // Paused due to bin fill in progress
             // ========================================
             // Motors are stopped. Monitor weight to detect when filling finishes,
@@ -333,9 +313,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             break;
 
         case FeedingStage::POST_AVERAGING:
-            // ========================================
             // Post-Averaging: Motors stopped, waiting for weight to settle
-            // ========================================
             // After target weight reached, wait 60 seconds for bins to settle,
             // then use averaged weight for final dispensed calculation.
             // Continue monitoring for bin fills - if detected, use oldest reading.
