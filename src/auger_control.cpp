@@ -462,17 +462,18 @@ bool AugerControl::detectBinFill() {
         return false;  // check if we have enough samples
     }
 
-    // Check if last howFarBack readings are progressively heavier
+    // Check if last howFarBack readings are progressively heavier (>10 lbs per step)
     for (int i = 0; i < howFarBack - 1; i++) {
         int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
         int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
 
-        if (systemStatus.weightHistory[newerIdx] <= systemStatus.weightHistory[olderIdx]) {
-            return false;  // Not progressively increasing
+        float delta = systemStatus.weightHistory[newerIdx] - systemStatus.weightHistory[olderIdx];
+        if (delta <= 10) {  // Not increasing by enough
+            return false;
         }
     }
 
-    return true; 
+    return true;  // All pairs showed >10 lb increase 
 }
 
 void AugerControl::triggerAlarm(const char* reason) {
