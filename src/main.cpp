@@ -407,6 +407,7 @@ void setupNetwork() {
  *
  * EMA formula: smoothed = alpha * new + (1-alpha) * previous
  * With alpha=0.3, we get 30% responsiveness to new readings while filtering noise.
+ * also detects bin fills
  */
 void updateBinWeights() {
     if (bintrac.readAllBins(systemStatus.currentWeight)) {
@@ -468,6 +469,31 @@ void updateBinWeights() {
 
 		// do projected Weight calcs
 		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight + config.projectedWeight;
+
+		//do bin fill detection
+		//how many readings back to go
+		int howFarBack = 5;
+
+		//default to false
+		systemStatus.binFillDetected = false;
+
+		// check if we have enough samples
+		if (systemStatus.historyCount < howFarBack) {
+			return; //skip detection if we don't 
+		}
+
+		// Check if last howFarBack readings are progressively heavier (>10 lbs per step)
+		for (int i = 0; i < howFarBack - 1; i++) {
+			int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+			int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+
+			float delta = systemStatus.weightHistory[newerIdx] - systemStatus.weightHistory[olderIdx];
+			if (delta <= 10) {  // Not increasing by enough
+				return; //will break us out of the loop if no detection
+			}
+		}
+		//if we got here on final loop, then bin is being filled
+		systemStatus.binFillDetected = true;
 
     } else {
         // Read failed - log error and attempt reconnection if down for 30+ seconds

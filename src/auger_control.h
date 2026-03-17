@@ -103,9 +103,6 @@ private:
     void triggerAlarm(const char* reason);
     void sendWarning(const char* warning);
 
-    // Bin fill detection
-    bool detectBinFill();
-
     // Low-level relay control
     void controlAuger(bool state);
     void controlChain(bool state);

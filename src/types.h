@@ -132,6 +132,8 @@ struct SystemStatus {
     char currentTime[32];
     char lastError[128];
     unsigned long lastBintracUpdate;
+
+	bool binFillDetected;
 };
 
 #endif // TYPES_H

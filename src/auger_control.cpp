@@ -184,7 +184,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     // Check for bin fill during active feeding stages
     // Skip during PAUSED_FOR_FILL and POST_AVERAGING (POST_AVERAGING handles bin fills differently)
     if (_stage != FeedingStage::PAUSED_FOR_FILL && _stage != FeedingStage::POST_AVERAGING) {
-        if (detectBinFill()) {
+        if (systemStatus.binFillDetected) {
             // Bin fill detected - pause feeding until weight stabilizes
             _stageBeforePause = _stage;
             controlAuger(false);
@@ -281,7 +281,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Motors are stopped. Monitor weight to detect when filling finishes,
             // then wait for settling time before resuming.
 
-            if (detectBinFill()) {
+            if (systemStatus.binFillDetected) {
                 // Bin fill still in progress (5 consecutive weight increases detected)
                 _fillStabilizedTime = 0;  // Reset settling timer
             } else {
@@ -344,7 +344,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 unsigned long postElapsed = (millis() - _postAveragingStartTime) / 1000;
 
                 // Check if bin fill started during settling period
-                if (detectBinFill()) {
+                if (systemStatus.binFillDetected) {
                     // Bin fill detected during settling - use oldest available reading
                     int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
                     float endWeight = systemStatus.weightHistory[oldestIdx];
@@ -443,37 +443,6 @@ void AugerControl::terminate() {
     _lastWeightCheck = millis();
     _stage = FeedingStage::TERMINATED;
     Serial.println("Feeding terminated by user");
-}
-
-/**
- * DETECT BIN FILL
- *
- * Checks if the last 5 weight readings show a progressive increase,
- * indicating bins are being filled (manually or via truck).
- *
- * Returns: true if bin fill detected, false otherwise
- */
-bool AugerControl::detectBinFill() {
-
-	//how many readings back to go
-	int howFarBack = 5;
-
-    if (systemStatus.historyCount < howFarBack) {
-        return false;  // check if we have enough samples
-    }
-
-    // Check if last howFarBack readings are progressively heavier (>10 lbs per step)
-    for (int i = 0; i < howFarBack - 1; i++) {
-        int newerIdx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-        int olderIdx = (systemStatus.historyIndex - 2 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-
-        float delta = systemStatus.weightHistory[newerIdx] - systemStatus.weightHistory[olderIdx];
-        if (delta <= 10) {  // Not increasing by enough
-            return false;
-        }
-    }
-
-    return true;  // All pairs showed >10 lb increase 
 }
 
 void AugerControl::triggerAlarm(const char* reason) {
