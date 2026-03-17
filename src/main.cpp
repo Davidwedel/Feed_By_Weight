@@ -48,6 +48,7 @@ void handleFeedingFailed();
 void handleFeedingTerminated();
 float calculateFeedTarget(uint8_t feedCycle);
 void calculateTotalDispensedToday();
+void getTodaysFeedEvents(FeedEvent* out, int& count);
 
 /**
  * SYSTEM INITIALIZATION
@@ -273,6 +274,14 @@ void loop() {
 
                 Serial.printf("Feed started via Telegram: %.2f lbs target\n", currentFeedTarget);
             }
+        }
+
+        // Send daily summary if /dailysummary was issued
+        if (telegramBot->isDailySummaryRequested()) {
+            FeedEvent todayEvents[20];
+            int todayCount = 0;
+            getTodaysFeedEvents(todayEvents, todayCount);
+            telegramBot->sendDailySummary(todayEvents, todayCount);
         }
     }
 
@@ -664,6 +673,14 @@ void handleFeedingComplete() {
     // Send Telegram notification with summary
     if (config.telegramEnabled) {
         telegramBot->sendFeedingComplete(currentFeedCycle, event.targetWeight, event.actualWeight, event.duration, totalDispensedToday);
+
+        // If this was the last feeding of the day, also send daily summary
+        if (currentFeedCycle == config.numFeedings - 1) {
+            FeedEvent todayEvents[20];
+            int todayCount = 0;
+            getTodaysFeedEvents(todayEvents, todayCount);
+            telegramBot->sendDailySummary(todayEvents, todayCount);
+        }
     }
 
     // Stop all motors and reset auger control state
@@ -773,6 +790,27 @@ void handleFeedingTerminated() {
  * - After day rollover (midnight)
  * - After history restore/clear
  */
+void getTodaysFeedEvents(FeedEvent* out, int& count) {
+    count = 0;
+    if (!scheduler.isTimeSynced()) return;
+    FeedEvent all[20];
+    int total = 0;
+    storage.getFeedHistory(all, total, 20);
+    unsigned long now = scheduler.getCurrentTime() + (config.timezone * 3600L);
+    struct tm todayInfo;
+    time_t nowTime = (time_t)now;
+    gmtime_r(&nowTime, &todayInfo);
+    for (int i = 0; i < total; i++) {
+        unsigned long eventTime = all[i].timestamp + (config.timezone * 3600L);
+        struct tm eventInfo;
+        time_t evTime = (time_t)eventTime;
+        gmtime_r(&evTime, &eventInfo);
+        if (eventInfo.tm_yday == todayInfo.tm_yday && eventInfo.tm_year == todayInfo.tm_year) {
+            out[count++] = all[i];
+        }
+    }
+}
+
 void calculateTotalDispensedToday() {
     totalDispensedToday = 0;
     FeedEvent events[20];

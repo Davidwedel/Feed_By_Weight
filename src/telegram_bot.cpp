@@ -12,6 +12,7 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _clearAlarmRequested = false;
     _addFeedRequested = false;
     _startFeedRequested = false;
+    _dailySummaryRequested = false;
     _startFeedWeight = 0;
     memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
     _statusRequestChatId = "";
@@ -229,6 +230,7 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/clearalarm - Clear alarm state\n"
                        "/startfeed - Start a feed cycle\n"
                        "  Usage: /startfeed <weight>\n"
+                       "/dailysummary - Send today's feeding summary\n"
                        "/logoldfeed - Add manual feed entry\n"
                        "  Usage: /logoldfeed <cycle> <weight> [duration] [HH:MM]", "");
         }
@@ -267,6 +269,9 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             char msg[64];
             snprintf(msg, sizeof(msg), "Starting feed: %.2f lbs...", weight);
             _bot->sendMessage(chat_id, msg, "");
+        }
+        else if (text == "/dailysummary") {
+            _dailySummaryRequested = true;
         }
         else if (text.startsWith("/logoldfeed")) {
             // Parse: /logoldfeed <cycle> <weight> [duration_seconds] [HH:MM]

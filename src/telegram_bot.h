@@ -53,6 +53,9 @@ public:
     bool isStartFeedRequested() { bool r = _startFeedRequested; _startFeedRequested = false; return r; }
     float getStartFeedWeight() { return _startFeedWeight; }
 
+    // Check if daily summary was requested (via /dailysummary)
+    bool isDailySummaryRequested() { bool r = _dailySummaryRequested; _dailySummaryRequested = false; return r; }
+
 private:
     Config& _config;
     WiFiClientSecure _client;
@@ -64,6 +67,7 @@ private:
     bool _clearAlarmRequested;
     bool _addFeedRequested;
     bool _startFeedRequested;
+    bool _dailySummaryRequested;
     float _startFeedWeight;
     FeedEvent _pendingFeedEvent;
     String _statusRequestChatId;
