@@ -69,14 +69,14 @@ void TelegramBot::sendAlarm(uint8_t feedCycle, float targetWeight, float actualW
     sendMessage(message);
 }
 
-void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float weight, uint16_t duration,
-                                       float totalDispensedToday) {
+void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float targetWeight, float weight, uint16_t duration, float totalDispensedToday) {
     if (!isEnabled()) return;
 
     char message[256];
     snprintf(message, sizeof(message),
              "*Feeding Complete*\n\n"
              "Cycle: %d\n"
+             "Targeted: %.2f lbs\n"
              "Dispensed: %.2f lbs\n"
              "Duration: %d:%02d\n"
              "Total Dispensed Today: %.2f lbs",

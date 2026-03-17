@@ -663,8 +663,7 @@ void handleFeedingComplete() {
 
     // Send Telegram notification with summary
     if (config.telegramEnabled) {
-        telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration,
-                                         totalDispensedToday);
+        telegramBot->sendFeedingComplete(currentFeedCycle, event.targetWeight, event.actualWeight, event.duration, totalDispensedToday);
     }
 
     // Stop all motors and reset auger control state
@@ -754,7 +753,7 @@ void handleFeedingTerminated() {
     scheduler.markFeedingComplete(currentFeedCycle);
 
     if (config.telegramEnabled) {
-        telegramBot->sendFeedingComplete(currentFeedCycle, event.actualWeight, event.duration,
+        telegramBot->sendFeedingComplete(currentFeedCycle, event.targetWeight, event.actualWeight, event.duration,
                                          totalDispensedToday);
     }
 
