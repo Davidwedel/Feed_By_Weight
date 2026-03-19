@@ -96,6 +96,9 @@ private:
     float _weightWhenPaused;          // Weight at the moment pause triggered (never changes)
 	bool _pausedByUser;
 
+    // Weight averaging helper
+    float getAveragedWeight(int samplesToAverage = -1);
+
     // Safety and warnings
     void triggerAlarm(const char* reason);
     void sendWarning(const char* warning);

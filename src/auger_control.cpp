@@ -74,21 +74,10 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _chainStartTime = millis();
     _lastWeightCheck = millis();
 
-    // Calculate start weight as average of last N readings from history
-    _startWeight = 0;
-
-    if (systemStatus.historyCount > 0) {
-        for (int i = 0; i < systemStatus.historyCount; i++) {
-            int idx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-            _startWeight += systemStatus.weightHistory[idx];
-        }
-        _startWeight /= systemStatus.historyCount;
-        Serial.printf("Start weight: %.2f lbs (average of %d samples)\n", _startWeight, systemStatus.historyCount);
-    } else {
-        // No history available - use current total weight
-        _startWeight = systemStatus.totalCurrentWeight;
-        Serial.printf("Start weight: %.2f lbs (no history available)\n", _startWeight);
-    }
+    // Calculate start weight as average of all available readings from history
+    _startWeight = getAveragedWeight();
+    Serial.printf("Start weight: %.2f lbs (averaged from %d samples)\n", _startWeight,
+                  systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1);
 
     _weightDispensed = 0;
 
@@ -172,7 +161,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     }
 
     // Calculate weight dispensed (bins get lighter as feed goes out)
-    _weightDispensed = _startWeight - currentTotalWeight;
+    _weightDispensed = _startWeight - systemStatus.projectedWeightDispensed;
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
@@ -259,15 +248,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
                 // Check if 60 seconds elapsed
                 if (postElapsed >= 90) {
-                    // Average last N readings for final weight
-                    float endWeight = 0;
-                    int samplesToAverage = (systemStatus.historyCount < SystemStatus::WEIGHT_HISTORY_SIZE) ? systemStatus.historyCount : SystemStatus::WEIGHT_HISTORY_SIZE;
-
-                    for (int i = 0; i < samplesToAverage; i++) {
-                        int idx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
-                        endWeight += systemStatus.weightHistory[idx];
-                    }
-                    endWeight /= samplesToAverage;
+                    // Average all available readings for final weight
+                    float endWeight = getAveragedWeight();
+                    int samplesToAverage = systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1;
 
                     _weightDispensed = _startWeight - endWeight;
                     _stage = FeedingStage::COMPLETED;
@@ -294,7 +277,7 @@ void AugerControl::stopAll() {
 /**
  * MANUAL PAUSE/RESUME
  *
- * Allows user to pause feeding via web UI (different from auto-pause for bin fill).
+ * Allows user to pause feeding via web UI (also used by pause for bin fill, see bool byUser).
  * Remembers which stage we were in and resumes there.
  */
 void AugerControl::pauseFeeding(bool byUser) {
@@ -302,7 +285,9 @@ void AugerControl::pauseFeeding(bool byUser) {
         Serial.println("Cannot pause - not actively feeding");
         return;
     }
-	_weightWhenPaused = systemStatus.totalCurrentWeight;
+
+	//use projected because it'll be closer--everything is guessing tho
+	_weightWhenPaused = systemStatus.projectedWeightDispensed;
     _stageBeforePause = _stage;  // Remember where we were
 								 
 	_pausedByUser = byUser;//make so only user can unpause if paused and vice versa
@@ -322,7 +307,8 @@ void AugerControl::resumeFeeding(bool byUser) {
     }
 
     // Adjust _startWeight to account for any weight added during pause (bin filling)
-    float currentWeight = systemStatus.totalCurrentWeight;
+    // Use averaged weight for stable reference after bins settle
+    float currentWeight = getAveragedWeight();
     float weightAddedDuringPause = currentWeight - _weightWhenPaused;
     _startWeight += weightAddedDuringPause;
     Serial.printf("Resume: weight changed by %.2f lbs during pause, adjusted start weight to %.2f\n",
@@ -351,6 +337,26 @@ void AugerControl::terminate() {
     _lastWeightCheck = millis();
     _stage = FeedingStage::TERMINATED;
     Serial.println("Feeding terminated by user");
+}
+
+float AugerControl::getAveragedWeight(int samplesToAverage) {
+    // Return single reading if insufficient history
+    if (systemStatus.historyCount < 5) {
+        return systemStatus.totalCurrentWeight;
+    }
+
+    // Default to all available samples
+    if (samplesToAverage < 0 || samplesToAverage > systemStatus.historyCount) {
+        samplesToAverage = systemStatus.historyCount;
+    }
+
+    // Average the requested number of samples from history
+    float avg = 0;
+    for (int i = 0; i < samplesToAverage; i++) {
+        int idx = (systemStatus.historyIndex - 1 - i + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
+        avg += systemStatus.weightHistory[idx];
+    }
+    return avg / samplesToAverage;
 }
 
 void AugerControl::triggerAlarm(const char* reason) {
