@@ -31,6 +31,20 @@ float totalDispensedToday = 0;       // Running total of feed dispensed today (l
 uint8_t lastDayForTotal = 0;         // Day-of-month for detecting midnight rollover
 volatile bool historyChanged = false;// Flag set when history is restored/cleared
 
+// Pending Telegram notification (deferred to avoid watchdog timeout)
+// File I/O and SSL/HTTPS happen in separate loop iterations so each gets a fresh watchdog window.
+struct PendingTelegramNotification {
+    bool active = false;
+    enum Type { FEED_COMPLETE, FEED_FAILED, FEED_TERMINATED, DAILY_SUMMARY } type;
+    uint8_t feedCycle;
+    float targetWeight;
+    float actualWeight;
+    uint16_t duration;
+    float totalToday;
+    bool sendDailySummary;
+    char alarmReason[64];
+} pendingNotification;
+
 // Weight Smoothing Configuration
 // We use Exponential Moving Average (EMA) to smooth noisy bin weight readings
 bool emaInitialized = false;         // True after first weight reading
@@ -294,6 +308,41 @@ void loop() {
 
     // Run main state machine
     runStateMachine();
+
+    // Send any deferred Telegram notifications (deferred to avoid watchdog timeout)
+    // File I/O runs in one loop iteration; SSL/HTTPS runs in the next with a fresh watchdog window.
+    // Daily summary is further deferred to a third iteration to prevent cumulative timeout.
+    if (pendingNotification.active && config.telegramEnabled && telegramBot) {
+        pendingNotification.active = false;  // Clear first to prevent re-send on SSL delay
+        bool shouldSendDailySummary = pendingNotification.sendDailySummary;
+
+        switch (pendingNotification.type) {
+            case PendingTelegramNotification::FEED_COMPLETE:
+            case PendingTelegramNotification::FEED_TERMINATED:
+                telegramBot->sendFeedingComplete(pendingNotification.feedCycle,
+                    pendingNotification.targetWeight, pendingNotification.actualWeight,
+                    pendingNotification.duration, pendingNotification.totalToday);
+                // Defer daily summary to next loop iteration to avoid cumulative SSL timeout
+                if (shouldSendDailySummary) {
+                    pendingNotification.active = true;
+                    pendingNotification.type = PendingTelegramNotification::DAILY_SUMMARY;
+                    pendingNotification.sendDailySummary = false;  // Prevent infinite loop
+                }
+                break;
+            case PendingTelegramNotification::FEED_FAILED:
+                telegramBot->sendAlarm(pendingNotification.feedCycle,
+                    pendingNotification.targetWeight, pendingNotification.actualWeight,
+                    pendingNotification.alarmReason);
+                break;
+            case PendingTelegramNotification::DAILY_SUMMARY: {
+                FeedEvent todayEvents[20];
+                int todayCount = 0;
+                getTodaysFeedEvents(todayEvents, todayCount);
+                telegramBot->sendDailySummary(todayEvents, todayCount);
+                break;
+            }
+        }
+    }
 
     delay(10);
 }
@@ -746,6 +795,10 @@ void handleFeedingComplete() {
     event.alarmTriggered = false;
     strcpy(event.alarmReason, "");
 
+    Serial.printf("FeedEvent: cycle=%d target=%.1f actual=%.1f duration=%ds alarm=%d reason=%s\n",
+        event.feedCycle, event.targetWeight, event.actualWeight, event.duration,
+        event.alarmTriggered, event.alarmReason);
+
     // Save to CSV history and clear NVS progress (no longer needed)
     storage.addFeedEvent(event);
     storage.clearFeedProgress();
@@ -760,17 +813,19 @@ void handleFeedingComplete() {
     // Mark this feed cycle as complete (prevents re-triggering today)
     scheduler.markFeedingComplete(currentFeedCycle);
 
-    // Send Telegram notification with summary
+    Serial.println("queuing deferred Telegram notification");
+    // Defer Telegram notification to next loop() iteration to avoid watchdog timeout.
+    // File I/O above can take 500ms+; SSL/HTTPS takes 2-5s — doing both in one loop
+    // iteration can exceed the TWDT threshold and trigger GURU MEDITATION ERROR.
     if (config.telegramEnabled) {
-        telegramBot->sendFeedingComplete(currentFeedCycle, event.targetWeight, event.actualWeight, event.duration, totalDispensedToday);
-
-        // If this was the last feeding of the day, also send daily summary
-        if (currentFeedCycle == config.numFeedings - 1) {
-            FeedEvent todayEvents[20];
-            int todayCount = 0;
-            getTodaysFeedEvents(todayEvents, todayCount);
-            telegramBot->sendDailySummary(todayEvents, todayCount);
-        }
+        pendingNotification.active = true;
+        pendingNotification.type = PendingTelegramNotification::FEED_COMPLETE;
+        pendingNotification.feedCycle = currentFeedCycle;
+        pendingNotification.targetWeight = event.targetWeight;
+        pendingNotification.actualWeight = event.actualWeight;
+        pendingNotification.duration = event.duration;
+        pendingNotification.totalToday = totalDispensedToday;
+        pendingNotification.sendDailySummary = (currentFeedCycle == config.numFeedings - 1);
     }
 
     // Stop all motors and reset auger control state
@@ -815,10 +870,15 @@ void handleFeedingFailed() {
         Serial.println("Warning: Time not synced, event saved with timestamp 0");
     }
 
-    // Send Telegram alarm notification
+    // Defer Telegram alarm notification to next loop() iteration (watchdog safety)
     if (config.telegramEnabled) {
-        telegramBot->sendAlarm(currentFeedCycle, event.targetWeight,
-                               event.actualWeight, event.alarmReason);
+        pendingNotification.active = true;
+        pendingNotification.type = PendingTelegramNotification::FEED_FAILED;
+        pendingNotification.feedCycle = currentFeedCycle;
+        pendingNotification.targetWeight = event.targetWeight;
+        pendingNotification.actualWeight = event.actualWeight;
+        strncpy(pendingNotification.alarmReason, event.alarmReason, sizeof(pendingNotification.alarmReason) - 1);
+        pendingNotification.alarmReason[sizeof(pendingNotification.alarmReason) - 1] = '\0';
     }
 
     // Stop all motors immediately
@@ -859,9 +919,16 @@ void handleFeedingTerminated() {
 
     scheduler.markFeedingComplete(currentFeedCycle);
 
+    // Defer Telegram notification to next loop() iteration (watchdog safety)
     if (config.telegramEnabled) {
-        telegramBot->sendFeedingComplete(currentFeedCycle, event.targetWeight, event.actualWeight, event.duration,
-                                         totalDispensedToday);
+        pendingNotification.active = true;
+        pendingNotification.type = PendingTelegramNotification::FEED_TERMINATED;
+        pendingNotification.feedCycle = currentFeedCycle;
+        pendingNotification.targetWeight = event.targetWeight;
+        pendingNotification.actualWeight = event.actualWeight;
+        pendingNotification.duration = event.duration;
+        pendingNotification.totalToday = totalDispensedToday;
+        pendingNotification.sendDailySummary = false;
     }
 
     augerControl.stopAll();
