@@ -591,7 +591,8 @@ void updateBinWeights() {
 			if (config.telegramEnabled && telegramBot) {
 				telegramBot->sendMessage("Feeding paused - bin fill detected");
 			}
-			Serial.println("Feeding paused - notification sent");
+			Serial.printf("Feeding paused - bin fill detected: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+			             augerControl.getWeightDispensed(), systemStatus.weightDispensed);
 		}
 
 		// Notify on resume
@@ -599,7 +600,8 @@ void updateBinWeights() {
 			if (config.telegramEnabled && telegramBot) {
 				telegramBot->sendMessage("Feeding resumed");
 			}
-			Serial.println("Feeding resumed - notification sent");
+			Serial.printf("Feeding resumed after bin fill: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+			             augerControl.getWeightDispensed(), systemStatus.weightDispensed);
 		}
 
 		wasPaused = isPaused;
@@ -888,7 +890,8 @@ void handleFeedingFailed() {
     systemStatus.state = SystemState::ALARM;
     strncpy(systemStatus.lastError, event.alarmReason, sizeof(systemStatus.lastError) - 1);
 
-    Serial.printf("Alarm: %s\n", event.alarmReason);
+    Serial.printf("Alarm: %s - Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+                 event.alarmReason, event.actualWeight, systemStatus.weightDispensed);
 }
 
 /**
@@ -934,8 +937,9 @@ void handleFeedingTerminated() {
     augerControl.stopAll();
     systemStatus.state = SystemState::IDLE;
 
-    Serial.printf("Terminated: %.2f lbs dispensed in %d:%02d\n",
-                  event.actualWeight, event.duration / 60, event.duration % 60);
+    Serial.printf("Terminated: Projected Dispensed=%.2f, Raw Dispensed=%.2f in %d:%02d\n",
+                  event.actualWeight, systemStatus.weightDispensed,
+                  event.duration / 60, event.duration % 60);
 }
 
 /**

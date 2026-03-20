@@ -193,8 +193,8 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 _lastWeightCheck = millis();  // Record when motors stopped
                 _postAveragingStartTime = millis();
                 _stage = FeedingStage::POST_AVERAGING;
-                Serial.printf("Target reached: Dispensed=%.2f in %lus. Starting post-averaging (60s)...\n",
-                             _weightDispensed, elapsed);
+                Serial.printf("Target reached: Projected Dispensed=%.2f, Raw Dispensed=%.2f, in %lus. Starting post-averaging (60s)...\n",
+                             _weightDispensed, systemStatus.weightDispensed, elapsed);
                 return _stage;
             }
 
@@ -295,7 +295,8 @@ void AugerControl::pauseFeeding(bool byUser) {
     controlAuger(false);
     controlChain(false);
     _stage = FeedingStage::PAUSED;
-    Serial.println("Feeding paused");
+    Serial.printf("Feeding paused: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+                 _weightDispensed, systemStatus.weightDispensed);
 }
 
 void AugerControl::resumeFeeding(bool byUser) {
@@ -327,8 +328,9 @@ void AugerControl::resumeFeeding(bool byUser) {
         _bothRunningStartTime = millis();
     }
 
-    Serial.printf("Feeding resumed to %s\n",
-                  _stage == FeedingStage::CHAIN_ONLY ? "CHAIN_ONLY" : "BOTH_RUNNING");
+    Serial.printf("Feeding resumed to %s: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+                  _stage == FeedingStage::CHAIN_ONLY ? "CHAIN_ONLY" : "BOTH_RUNNING",
+                  _weightDispensed, systemStatus.weightDispensed);
 }
 
 void AugerControl::terminate() {
@@ -336,7 +338,8 @@ void AugerControl::terminate() {
     controlChain(false);
     _lastWeightCheck = millis();
     _stage = FeedingStage::TERMINATED;
-    Serial.println("Feeding terminated by user");
+    Serial.printf("Feeding terminated by user: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
+                 _weightDispensed, systemStatus.weightDispensed);
 }
 
 float AugerControl::getAveragedWeight(int samplesToAverage) {
