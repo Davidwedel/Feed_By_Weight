@@ -524,9 +524,19 @@
                     document.getElementById('binD').textContent = data.currentWeight[3].toFixed(2) + ' lbs';
 
                     document.getElementById('totalDispensedToday').textContent = data.totalDispensedToday.toFixed(2) + ' lbs';
-                    document.getElementById('weightDispensed').textContent = data.weightDispensed.toFixed(2) + ' lbs';
-                    document.getElementById('projectedWeightDispensed').textContent = data.projectedWeightDispensed.toFixed(2) + ' lbs';
-                    document.getElementById('flowRate').textContent = data.flowRate.toFixed(2) + ' lbs/min';
+
+                    // Show weight dispensed only when actively feeding
+                    const isFeeding = [1, 2, 3, 6].includes(data.feedingStage); // CHAIN_ONLY, BOTH_RUNNING, POST_AVERAGING, PAUSED
+                    document.getElementById('weightDispensed').textContent = isFeeding ?
+                        data.weightDispensed.toFixed(2) + ' lbs' : '--';
+                    document.getElementById('projectedWeightDispensed').textContent = isFeeding ?
+                        data.projectedWeightDispensed.toFixed(2) + ' lbs' : '--';
+
+                    // Show flow rate when feeding or bin filling
+                    const showFlowRate = isFeeding || data.binFillDetected;
+                    document.getElementById('flowRate').textContent = showFlowRate ?
+                        data.flowRate.toFixed(2) + ' lbs/min' : '--';
+
                     document.getElementById('currentTime').textContent = data.currentTime || '-';
                 })
                 .catch(err => { if (err !== 'busy') console.error('Status fetch error:', err); });

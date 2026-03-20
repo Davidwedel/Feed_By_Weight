@@ -521,6 +521,7 @@ String FeedWebServer::statusToJson() {
     doc["currentTime"] = _status.currentTime;
     doc["lastError"] = _status.lastError;
     doc["lastBintracUpdate"] = _status.lastBintracUpdate;
+    doc["binFillDetected"] = _status.binFillDetected;
 
     String json;
     serializeJson(doc, json);
