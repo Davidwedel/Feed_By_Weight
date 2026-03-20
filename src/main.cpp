@@ -521,7 +521,7 @@ void updateBinWeights() {
         }*/
 
 		// do projected Weight calcs
-		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight + config.projectedWeight;
+		systemStatus.projectedWeightDispensed = systemStatus.totalCurrentWeight - config.projectedWeight;
 
 		//do bin fill detection
 		// Track previous state to detect transitions
