@@ -32,6 +32,7 @@ public:
     bool isChainRunning() const { return _chainRunning; }
     FeedingStage getStage() const { return _stage; }
     float getWeightDispensed() const { return _weightDispensed; }
+    float getProjectedWeightDispensed() const { return _projectedWeightDispensed; }
     unsigned long getDuration() const;
     bool isAlarmTriggered() const { return _alarmTriggered; }
     const char* getAlarmReason() const { return _alarmReason; }
@@ -66,6 +67,7 @@ private:
     float _targetWeight;
     float _startWeight;
     float _weightDispensed;
+	float _projectedWeightDispensed;
     float _alarmThreshold;
 
     uint16_t _chainPreRunTime;  // How long chain runs alone (seconds)

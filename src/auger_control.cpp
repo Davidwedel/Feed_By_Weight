@@ -11,6 +11,7 @@ AugerControl::AugerControl() {
     _targetWeight = 0;
     _startWeight = 0;
     _weightDispensed = 0;
+	_projectedWeightDispensed = 0;
     _feedStartTime = 0;
     _chainStartTime = 0;
     _bothRunningStartTime = 0;
@@ -80,6 +81,7 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
                   systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1);
 
     _weightDispensed = 0;
+	_projectedWeightDispensed = 0;
 
     // Reset all warning/alarm flags for new feeding cycle
     _alarmTriggered = false;
@@ -161,7 +163,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     }
 
     // Calculate weight dispensed (bins get lighter as feed goes out)
-    _weightDispensed = _startWeight - systemStatus.projectedWeightDispensed;
+    _weightDispensed = _startWeight - systemStatus.currentWeight;
+
+	_projectedWeightDispensed = _weightDispensed + config.projectedWeight
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
@@ -188,13 +192,13 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
             // Main feeding stage. Monitor weight dispensed and check for completion.
 
             // Check if target weight reached (SUCCESS CONDITION)
-            if (_weightDispensed >= _targetWeight) {
+            if (_projectedWeightDispensed >= _targetWeight) {
                 stopAll();
                 _lastWeightCheck = millis();  // Record when motors stopped
                 _postAveragingStartTime = millis();
                 _stage = FeedingStage::POST_AVERAGING;
                 Serial.printf("Target reached: Projected Dispensed=%.2f, Raw Dispensed=%.2f, in %lus. Starting post-averaging (60s)...\n",
-                             _weightDispensed, systemStatus.weightDispensed, elapsed);
+                             _projectedWeightDispensed, _weightDispensed, elapsed);
                 return _stage;
             }
 
@@ -238,9 +242,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     int oldestIdx = (systemStatus.historyIndex - systemStatus.historyCount + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE;
                     float endWeight = systemStatus.weightHistory[oldestIdx];
                     _weightDispensed = _startWeight - endWeight;
+					_projectedWeightDispensed = _weightDispensed + config.projectedWeight;
                     _stage = FeedingStage::COMPLETED;
                     Serial.printf("Bin fill detected during post-averaging. Using oldest reading. Final dispensed: %.2f lbs\n",
-                                 _weightDispensed);
+                                 _projectedWeightDispensed);
                     return _stage;
                 }
 
@@ -253,6 +258,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     int samplesToAverage = systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1;
 
                     _weightDispensed = _startWeight - endWeight;
+
+					//all the same for right now.
+					_projectedWeightDispensed = _weightDispensed;
                     _stage = FeedingStage::COMPLETED;
                     Serial.printf("Post-averaging complete (averaged %d samples). Final dispensed: %.2f lbs\n",
                                  samplesToAverage, _weightDispensed);
@@ -296,7 +304,7 @@ void AugerControl::pauseFeeding(bool byUser) {
     controlChain(false);
     _stage = FeedingStage::PAUSED;
     Serial.printf("Feeding paused: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
-                 _weightDispensed, systemStatus.weightDispensed);
+                 _projectedWeightDispensed, _weightDispensed);
 }
 
 void AugerControl::resumeFeeding(bool byUser) {
@@ -330,7 +338,7 @@ void AugerControl::resumeFeeding(bool byUser) {
 
     Serial.printf("Feeding resumed to %s: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
                   _stage == FeedingStage::CHAIN_ONLY ? "CHAIN_ONLY" : "BOTH_RUNNING",
-                  _weightDispensed, systemStatus.weightDispensed);
+                  _projectedWeightDispensed, _weightDispensed);
 }
 
 void AugerControl::terminate() {
@@ -339,7 +347,7 @@ void AugerControl::terminate() {
     _lastWeightCheck = millis();
     _stage = FeedingStage::TERMINATED;
     Serial.printf("Feeding terminated by user: Projected Dispensed=%.2f, Raw Dispensed=%.2f\n",
-                 _weightDispensed, systemStatus.weightDispensed);
+                 _projectedWeightDispensed, _weightDispensed);
 }
 
 float AugerControl::getAveragedWeight(int samplesToAverage) {

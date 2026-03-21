@@ -520,9 +520,6 @@ void updateBinWeights() {
 				systemStatus.flowRate);
         }*/
 
-		// do projected Weight calcs
-		systemStatus.projectedWeightDispensed = systemStatus.weightDispensed + config.projectedWeight;
-
 		//do bin fill detection
 		// Track previous state to detect transitions
 		static bool prevBinFillDetected = false;
@@ -636,6 +633,7 @@ void updateSystemStatus() {
     systemStatus.chainRunning = augerControl.isChainRunning();
     systemStatus.feedingStage = augerControl.getStage();
     systemStatus.weightDispensed = augerControl.getWeightDispensed();
+    systemStatus.projectedWeightDispensed = augerControl.getProjectedWeightDispensed();
 
     // Recalculate daily total if history was restored/cleared via web UI
     if (historyChanged && scheduler.isTimeSynced()) {
