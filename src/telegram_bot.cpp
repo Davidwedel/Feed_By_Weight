@@ -266,6 +266,9 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             _statusRequested = true;
             _statusRequestChatId = chat_id;
         }
+        else if (text == "ping" || text == "/ping") {
+            _bot->sendMessage(chat_id, "ping", "");
+        }
         else if (text == "/disable") {
             _config.autoFeedEnabled = false;
             _stopRequested = true;
