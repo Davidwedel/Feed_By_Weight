@@ -68,6 +68,7 @@ private:
     float _startWeight;
     float _weightDispensed;
 	float _projectedWeightDispensed;
+	float _learnedProjectedWeightDispensed;
     float _alarmThreshold;
 
     uint16_t _chainPreRunTime;  // How long chain runs alone (seconds)

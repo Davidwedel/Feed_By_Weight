@@ -13,6 +13,7 @@ AugerControl::AugerControl() {
     _startWeight = 0;
     _weightDispensed = 0;
 	_projectedWeightDispensed = 0;
+	_learnedProjectedWeightDispensed = 0;
     _feedStartTime = 0;
     _chainStartTime = 0;
     _bothRunningStartTime = 0;
@@ -257,13 +258,19 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     float endWeight = getAveragedWeight();
                     int samplesToAverage = systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1;
 
+					float _uncalcedDispensed = _weightDispensed;
+
                     _weightDispensed = _startWeight - endWeight;
+
+					float rawLearnedProjected = _weightDispensed - _uncalcedDispensed;
 
 					//all the same for right now.
 					_projectedWeightDispensed = _weightDispensed;
                     _stage = FeedingStage::COMPLETED;
                     Serial.printf("Post-averaging complete (averaged %d samples). Final dispensed: %.2f lbs\n",
                                  samplesToAverage, _weightDispensed);
+
+					Serial.printf("raw learned projected = %.2f\n", rawLearnedProjected);
                     return _stage;
                 }
             }
