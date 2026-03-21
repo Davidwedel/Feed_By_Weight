@@ -3,6 +3,7 @@
 #include "types.h"
 
 extern SystemStatus systemStatus;
+extern Config config;
 
 AugerControl::AugerControl() {
     _augerRunning = false;
@@ -163,9 +164,8 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
     }
 
     // Calculate weight dispensed (bins get lighter as feed goes out)
-    _weightDispensed = _startWeight - systemStatus.currentWeight;
-
-	_projectedWeightDispensed = _weightDispensed + config.projectedWeight
+    _weightDispensed = _startWeight - systemStatus.totalCurrentWeight;
+    _projectedWeightDispensed = _weightDispensed + config.projectedWeight;
 
     unsigned long elapsed = (millis() - _feedStartTime) / 1000;  // Total elapsed time in seconds
 
