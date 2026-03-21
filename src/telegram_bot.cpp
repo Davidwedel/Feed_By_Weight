@@ -51,8 +51,11 @@ void TelegramBot::update() {
     }
 }
 
-void TelegramBot::sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, const char* reason) {
+void TelegramBot::sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, uint16_t duration, const char* reason) {
     if (!isEnabled()) return;
+
+    // Calculate feeding rate (lbs/min)
+    float feedRate = (duration > 0) ? (actualWeight / (duration / 60.0)) : 0.0;
 
     char message[256];
     snprintf(message, sizeof(message),
@@ -60,10 +63,14 @@ void TelegramBot::sendAlarm(uint8_t feedCycle, float targetWeight, float actualW
              "Feed Cycle: %d\n"
              "Target: %.2f lbs\n"
              "Actual: %.2f lbs\n"
+             "Duration: %d:%02d\n"
+             "Rate: %.2f lbs/min\n"
              "Reason: %s",
              feedCycle + 1,
              targetWeight,
              actualWeight,
+             duration / 60, duration % 60,
+             feedRate,
              reason);
 
     sendMessage(message);
@@ -86,6 +93,9 @@ void TelegramBot::sendFeedingStarted(uint8_t feedCycle, float targetWeight) {
 void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float targetWeight, float weight, uint16_t duration, float totalDispensedToday) {
     if (!isEnabled()) return;
 
+    // Calculate feeding rate (lbs/min)
+    float feedRate = (duration > 0) ? (weight / (duration / 60.0)) : 0.0;
+
     char message[256];
     snprintf(message, sizeof(message),
              "*Feeding Complete*\n\n"
@@ -93,11 +103,13 @@ void TelegramBot::sendFeedingComplete(uint8_t feedCycle, float targetWeight, flo
              "Targeted: %.2f lbs\n"
              "Dispensed: %.2f lbs\n"
              "Duration: %d:%02d\n"
+             "Rate: %.2f lbs/min\n"
              "Total Dispensed Today: %.2f lbs",
              feedCycle + 1,
              targetWeight,
              weight,
              duration / 60, duration % 60,
+             feedRate,
              totalDispensedToday);
 
     sendMessage(message);

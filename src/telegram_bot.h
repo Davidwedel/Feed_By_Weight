@@ -18,7 +18,7 @@ public:
     void update();
 
     // Send alarm message
-    void sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, const char* reason);
+    void sendAlarm(uint8_t feedCycle, float targetWeight, float actualWeight, uint16_t duration, const char* reason);
 
     // Send feeding started message
     void sendFeedingStarted(uint8_t feedCycle, float targetWeight);

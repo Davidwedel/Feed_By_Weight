@@ -332,7 +332,7 @@ void loop() {
             case PendingTelegramNotification::FEED_FAILED:
                 telegramBot->sendAlarm(pendingNotification.feedCycle,
                     pendingNotification.targetWeight, pendingNotification.actualWeight,
-                    pendingNotification.alarmReason);
+                    pendingNotification.duration, pendingNotification.alarmReason);
                 break;
             case PendingTelegramNotification::DAILY_SUMMARY: {
                 FeedEvent todayEvents[20];
@@ -877,6 +877,7 @@ void handleFeedingFailed() {
         pendingNotification.feedCycle = currentFeedCycle;
         pendingNotification.targetWeight = event.targetWeight;
         pendingNotification.actualWeight = event.actualWeight;
+        pendingNotification.duration = event.duration;
         strncpy(pendingNotification.alarmReason, event.alarmReason, sizeof(pendingNotification.alarmReason) - 1);
         pendingNotification.alarmReason[sizeof(pendingNotification.alarmReason) - 1] = '\0';
     }
