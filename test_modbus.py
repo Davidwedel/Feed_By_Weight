@@ -11,18 +11,53 @@ Requirements: pip install pymodbus
 """
 
 import argparse
+import csv
+import glob
+import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from pymodbus.client import ModbusTcpClient
 
 _log_file = None
+CSV_DIR = "weight_logs"
+
+# Mutable container so the weight loop can swap files on day rollover
+_csv = {"writer": None, "file": None}
 
 
 def ts():
     """Return current timestamp string for log output."""
     return datetime.now().strftime("%H:%M:%S")
+
+
+def open_csv_for_today():
+    """Open (or append to) today's CSV file, updating the _csv container."""
+    os.makedirs(CSV_DIR, exist_ok=True)
+    filename = os.path.join(CSV_DIR, f"weights_{date.today().strftime('%Y-%m-%d')}.csv")
+    is_new = not os.path.exists(filename)
+    f = open(filename, "a", newline="")
+    writer = csv.writer(f)
+    if is_new:
+        writer.writerow(["timestamp", "bin_a", "bin_b", "bin_c", "bin_d", "total"])
+    _csv["writer"] = writer
+    _csv["file"] = f
+    print(f"CSV logging to {filename}")
+
+
+def purge_old_csvs():
+    """Delete CSV files older than 3 days."""
+    cutoff = date.today() - timedelta(days=3)
+    for path in glob.glob(os.path.join(CSV_DIR, "weights_*.csv")):
+        basename = os.path.basename(path)
+        try:
+            file_date = datetime.strptime(basename, "weights_%Y-%m-%d.csv").date()
+            if file_date < cutoff:
+                os.remove(path)
+                print(f"Deleted old log: {path}")
+        except ValueError:
+            pass
 
 
 def log(msg=""):
@@ -185,6 +220,7 @@ def main():
 
     prev_weights = None
     prev_time = None
+    current_csv_date = None
 
     # Exponential moving average smoothing factor.
     # Lower = smoother (0.1 = heavy smoothing, 1.0 = no smoothing).
@@ -202,6 +238,7 @@ def main():
                 continue
 
             now = time.time()
+            now_dt = datetime.now()
             reading = [
                 parse_bin_weight(result.registers, 0),
                 parse_bin_weight(result.registers, 2),
@@ -236,11 +273,32 @@ def main():
                     parts.append(f"{weights[i]:>7.0f} {change:>+5.0f} {lb_min:>+7.1f}")
                 log(ts() + " | " + " | ".join(parts))
 
+            # CSV logging
+            if _csv["writer"] is not None:
+                today = date.today()
+                if today != current_csv_date:
+                    # Day rolled over - open new file, purge old ones
+                    _csv["file"].close()
+                    open_csv_for_today()
+                    current_csv_date = today
+                    purge_old_csvs()
+                _csv["writer"].writerow([
+                    now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    f"{weights[0]:.1f}",
+                    f"{weights[1]:.1f}",
+                    f"{weights[2]:.1f}",
+                    f"{weights[3]:.1f}",
+                    f"{weights[4]:.1f}",
+                ])
+                _csv["file"].flush()
+
             prev_weights = weights
             prev_time = now
             time.sleep(3)
     finally:
         client.close()
+        if _csv["file"]:
+            _csv["file"].close()
         if _log_file:
             _log_file.close()
             print(f"Session saved to {_log_file.name}")
@@ -248,12 +306,17 @@ def main():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="BinTrac Modbus TCP weight monitor")
-    parser.add_argument("--record", action="store_true", help="Record session to a timestamped file")
+    parser.add_argument("--record", action="store_true", help="Record session to a timestamped .txt file")
+    parser.add_argument("--csv", action="store_true", help="Log weights to daily CSV files in weight_logs/")
     args = parser.parse_args()
 
     if args.record:
         filename = f"Weight_Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
         _log_file = open(filename, "w")
         print(f"Recording to {filename}")
+
+    if args.csv:
+        purge_old_csvs()
+        open_csv_for_today()
 
     main()
