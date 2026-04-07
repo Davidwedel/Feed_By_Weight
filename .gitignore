@@ -29,3 +29,5 @@ Weight_Session*.*
 weightsandmeasures.txt
 history_backup.csv
 *.log
+
+weight_logs/
