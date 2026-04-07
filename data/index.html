@@ -486,10 +486,10 @@
                     const stages = ['STOPPED', 'CHAIN_ONLY', 'BOTH_RUNNING', 'COMPLETED', 'FAILED', 'PAUSED', 'TERMINATED'];
 
                     document.getElementById('systemState').textContent = states[data.state] || 'UNKNOWN';
-                    document.getElementById('clearAlarmBtn').style.display = data.state === 3 ? 'inline-block' : 'none';
+                    document.getElementById('clearAlarmBtn').style.display = data.state === 2 ? 'inline-block' : 'none';
 
                     // Disable manual controls during automated feeding
-                    const feeding = data.state === 2; // FEEDING
+                    const feeding = data.state === 1; // FEEDING
                     document.getElementById('augerOnBtn').disabled = feeding;
                     document.getElementById('augerOffBtn').disabled = feeding;
                     document.getElementById('chainOnBtn').disabled = feeding;
