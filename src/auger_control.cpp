@@ -78,7 +78,8 @@ void AugerControl::startFeeding(float targetWeight, uint16_t chainPreRunTime, ui
     _lastWeightCheck = millis();
 
     // Calculate start weight as average of all available readings from history
-    _startWeight = getAveragedWeight();
+	if (_startWeight == 0)
+    	_startWeight = getAveragedWeight();
     Serial.printf("Start weight: %.2f lbs (averaged from %d samples)\n", _startWeight,
                   systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1);
 
@@ -256,6 +257,10 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                 if (postElapsed >= 90) {
                     // Average all available readings for final weight
                     float endWeight = getAveragedWeight();
+
+					//save start weight for next feeding
+					_startWeight = endWeight;
+
                     int samplesToAverage = systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1;
 
 					float _uncalcedDispensed = _weightDispensed;
