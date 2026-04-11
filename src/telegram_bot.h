@@ -56,6 +56,10 @@ public:
     bool isStartFeedRequested() { bool r = _startFeedRequested; _startFeedRequested = false; return r; }
     float getStartFeedWeight() { return _startFeedWeight; }
 
+    // Check if start feed cycle was requested (via /startfeedcycle <cycle>)
+    bool isStartFeedCycleRequested() { bool r = _startFeedCycleRequested; _startFeedCycleRequested = false; return r; }
+    uint8_t getStartFeedCycle() { return _startFeedCycleNum; }
+
     // Check if daily summary was requested (via /dailysummary)
     bool isDailySummaryRequested() { bool r = _dailySummaryRequested; _dailySummaryRequested = false; return r; }
 
@@ -70,6 +74,8 @@ private:
     bool _clearAlarmRequested;
     bool _addFeedRequested;
     bool _startFeedRequested;
+    bool _startFeedCycleRequested;
+    uint8_t _startFeedCycleNum;
     bool _dailySummaryRequested;
     float _startFeedWeight;
     FeedEvent _pendingFeedEvent;

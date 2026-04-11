@@ -12,6 +12,8 @@ TelegramBot::TelegramBot(Config& config) : _config(config)
     _clearAlarmRequested = false;
     _addFeedRequested = false;
     _startFeedRequested = false;
+    _startFeedCycleRequested = false;
+    _startFeedCycleNum = 0;
     _dailySummaryRequested = false;
     _startFeedWeight = 0;
     memset(&_pendingFeedEvent, 0, sizeof(_pendingFeedEvent));
@@ -257,6 +259,8 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
                        "/clearalarm - Clear alarm state\n"
                        "/startfeed - Start a feed cycle\n"
                        "  Usage: /startfeed <weight>\n"
+                       "/startfeedcycle - Run a scheduled cycle by number\n"
+                       "  Usage: /startfeedcycle <cycle>\n"
                        "/dailysummary - Send today's feeding summary\n"
                        "/logoldfeed - Add manual feed entry\n"
                        "  Usage: /logoldfeed <cycle> <weight> [duration] [HH:MM]", "");
@@ -298,6 +302,24 @@ void TelegramBot::handleNewMessages(int numNewMessages) {
             _startFeedRequested = true;
             char msg[64];
             snprintf(msg, sizeof(msg), "Starting feed: %.2f lbs...", weight);
+            _bot->sendMessage(chat_id, msg, "");
+        }
+        else if (text.startsWith("/startfeedcycle")) {
+            String args = text.substring(16);
+            args.trim();
+            if (args.length() == 0) {
+                _bot->sendMessage(chat_id, "Usage: /startfeedcycle <cycle>\nExample: /startfeedcycle 2", "");
+                continue;
+            }
+            int cycle = args.toInt();
+            if (cycle < 1 || cycle > 4) {
+                _bot->sendMessage(chat_id, "Cycle must be 1-4", "");
+                continue;
+            }
+            _startFeedCycleNum = (uint8_t)(cycle - 1);  // convert to 0-indexed
+            _startFeedCycleRequested = true;
+            char msg[48];
+            snprintf(msg, sizeof(msg), "Starting feed cycle %d...", cycle);
             _bot->sendMessage(chat_id, msg, "");
         }
         else if (text == "/dailysummary") {

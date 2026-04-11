@@ -294,6 +294,42 @@ void loop() {
             }
         }
 
+        // Start a specific scheduled cycle if /startfeedcycle <cycle> was issued
+        if (telegramBot->isStartFeedCycleRequested()) {
+            if (augerControl.isFeeding() || systemStatus.state == SystemState::FEEDING) {
+                telegramBot->sendMessage("Already feeding - cannot start cycle");
+            } else {
+                // Clear alarm if needed
+                if (systemStatus.state == SystemState::ALARM) {
+                    systemStatus.state = SystemState::IDLE;
+                    strcpy(systemStatus.lastError, "");
+                    Serial.println("Alarm auto-cleared by /startfeedcycle");
+                }
+
+                uint8_t cycle = telegramBot->getStartFeedCycle();
+                if (cycle >= config.numFeedings) {
+                    char msg[64];
+                    snprintf(msg, sizeof(msg), "Cycle %d does not exist (configured: %d)", cycle + 1, config.numFeedings);
+                    telegramBot->sendMessage(msg);
+                } else {
+                    currentFeedCycle = cycle;
+                    currentFeedTarget = calculateFeedTarget(currentFeedCycle);
+                    systemStatus.weightAtStart = systemStatus.totalCurrentWeight;
+
+                    augerControl.startFeeding(currentFeedTarget, config.chainPreRunTime, config.maxRuntime);
+                    systemStatus.state = SystemState::FEEDING;
+                    systemStatus.feedStartTime = millis();
+
+                    unsigned long ts = scheduler.isTimeSynced() ? scheduler.getCurrentTime() : 0;
+                    storage.saveFeedProgress(systemStatus.weightAtStart, 0, currentFeedTarget, currentFeedCycle, ts);
+                    lastProgressSave = millis();
+
+                    telegramBot->sendFeedingStarted(currentFeedCycle, currentFeedTarget);
+                    Serial.printf("Feed cycle %d started via /startfeedcycle: %.2f lbs\n", currentFeedCycle + 1, currentFeedTarget);
+                }
+            }
+        }
+
         // Send daily summary if /dailysummary was issued
         if (telegramBot->isDailySummaryRequested()) {
             FeedEvent todayEvents[20];
