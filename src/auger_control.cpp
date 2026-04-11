@@ -271,7 +271,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
 					//all the same for right now.
 					_projectedWeightDispensed = _weightDispensed;
-                    _stage = FeedingStage::COMPLETED;
+                    _stage = _alarmTriggered ? FeedingStage::FAILED : FeedingStage::COMPLETED;
                     Serial.printf("Post-averaging complete (averaged %d samples). Final dispensed: %.2f lbs\n",
                                  samplesToAverage, _weightDispensed);
 
@@ -391,11 +391,12 @@ void AugerControl::triggerAlarm(const char* reason) {
 
     Serial.printf("ALARM: %s\n", reason);
 
-    // Stop all motors immediately
+    // Stop all motors and enter post-averaging to update _startWeight before failing
     controlAuger(false);
     controlChain(false);
     _lastWeightCheck = millis();
-    _stage = FeedingStage::FAILED;
+    _postAveragingStartTime = millis();
+    _stage = FeedingStage::POST_AVERAGING;
 }
 
 void AugerControl::sendWarning(const char* warning) {
