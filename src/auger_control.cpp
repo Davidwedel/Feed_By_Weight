@@ -245,6 +245,7 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     float endWeight = systemStatus.weightHistory[oldestIdx];
                     _weightDispensed = _startWeight - endWeight;
 					_projectedWeightDispensed = _weightDispensed + config.projectedWeight;
+                    _startWeight = endWeight;
                     _stage = FeedingStage::COMPLETED;
                     Serial.printf("Bin fill detected during post-averaging. Using oldest reading. Final dispensed: %.2f lbs\n",
                                  _projectedWeightDispensed);
@@ -306,8 +307,9 @@ void AugerControl::pauseFeeding(bool byUser) {
         return;
     }
 
-	//use projected because it'll be closer--everything is guessing tho
-	_weightWhenPaused = systemStatus.projectedWeightDispensed;
+	// Use second-newest reading: newest may already reflect bin fill starting,
+	// and averaging over a dispense+fill window would be noisy.
+	_weightWhenPaused = systemStatus.weightHistory[(systemStatus.historyIndex - 2 + SystemStatus::WEIGHT_HISTORY_SIZE) % SystemStatus::WEIGHT_HISTORY_SIZE];
     _stageBeforePause = _stage;  // Remember where we were
 								 
 	_pausedByUser = byUser;//make so only user can unpause if paused and vice versa
