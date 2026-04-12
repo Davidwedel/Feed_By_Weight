@@ -259,9 +259,6 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
                     // Average all available readings for final weight
                     float endWeight = getAveragedWeight();
 
-					//save start weight for next feeding
-					_startWeight = endWeight;
-
                     int samplesToAverage = systemStatus.historyCount >= 5 ? systemStatus.historyCount : 1;
 
 					float _uncalcedDispensed = _weightDispensed;
@@ -272,6 +269,9 @@ FeedingStage AugerControl::update(float currentTotalWeight) {
 
 					//all the same for right now.
 					_projectedWeightDispensed = _weightDispensed;
+
+					//save end weight as start weight for next feeding
+					_startWeight = endWeight;
                     _stage = _alarmTriggered ? FeedingStage::FAILED : FeedingStage::COMPLETED;
                     Serial.printf("Post-averaging complete (averaged %d samples). Final dispensed: %.2f lbs\n",
                                  samplesToAverage, _weightDispensed);
