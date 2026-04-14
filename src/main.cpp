@@ -610,6 +610,9 @@ void updateBinWeights() {
 				telegramBot->sendMessage("Bin fill wait complete - normal operation");
 			}
 			Serial.println("Bin fill wait complete - notification sent");
+			// Invalidate cached start weight so the next scheduled feed re-measures
+			// against the current post-fill weight instead of the pre-fill value.
+			augerControl.resetStartWeight();
 			fillEndedTime = 0;  // Reset timer
 		}
 

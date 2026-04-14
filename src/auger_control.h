@@ -50,6 +50,9 @@ public:
     void setAuger(bool state);
     void setChain(bool state);
 
+    // Invalidate cached start weight so next feed re-measures (call after bin fill settles)
+    void resetStartWeight() { _startWeight = getAveragedWeight(); }
+
     // Check if feeding is active (including paused states, not terminal states)
     bool isFeeding() const {
         return _stage == FeedingStage::CHAIN_ONLY || _stage == FeedingStage::BOTH_RUNNING
